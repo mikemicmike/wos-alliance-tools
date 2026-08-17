@@ -1,0 +1,35 @@
+<select [id]="selectId"
+        class="form-select"
+        [class.is-invalid]="invalid"
+        [formControl]="selectControl"
+        (blur)="markAsTouched()">
+  <option [ngValue]="null">
+    {{
+    loading
+    ? 'Loading bear times...'
+    : placeholder
+    }}
+  </option>
+
+  <option *ngFor="
+      let bearTime of bearTimes;
+      trackBy: trackByBearTimeId
+    "
+          [ngValue]="bearTime.id">
+    {{ bearTime.label }}
+  </option>
+</select>
+
+<div *ngIf="errorMessage"
+     class="form-text text-danger">
+  {{ errorMessage }}
+</div>
+
+<div *ngIf="
+    !loading &&
+    !errorMessage &&
+    bearTimes.length === 0
+  "
+     class="form-text">
+  No bear times have been configured
+</div>

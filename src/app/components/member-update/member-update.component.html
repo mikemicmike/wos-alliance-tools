@@ -1,0 +1,282 @@
+<div class="container py-4">
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-body py-3">
+      <h1 class="h4 mb-1">Member details</h1>
+    </div>
+
+    <div class="card-body p-4">
+      <div *ngIf="errorMessage"
+           class="alert alert-danger"
+           role="alert">
+        {{ errorMessage }}
+      </div>
+
+      <form [formGroup]="memberForm"
+            (ngSubmit)="submit()"
+            novalidate>
+        <section class="mb-4">
+
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label for="memberId"
+                     class="form-label">
+                Member ID
+                <span class="text-danger">*</span>
+              </label>
+
+              <input id="memberId"
+                     type="number"
+                     class="form-control"
+                     formControlName="id"
+                     min="1"
+                     step="1"
+                     [class.is-invalid]="isInvalid('id')" />
+
+              <div class="invalid-feedback">
+                Enter a valid member ID.
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label for="memberName"
+                     class="form-label">
+                Name
+                <span class="text-danger">*</span>
+              </label>
+
+              <input id="memberName"
+                     type="text"
+                     class="form-control"
+                     formControlName="name"
+                     autocomplete="off"
+                     [class.is-invalid]="isInvalid('name')" />
+
+              <div class="invalid-feedback">
+                The member name is required.
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label for="joined"
+                     class="form-label">
+                Joined
+              </label>
+
+              <input id="joined"
+                     type="date"
+                     class="form-control"
+                     formControlName="joined" />
+            </div>
+
+            <div class="col-md-4">
+              <label for="bear"
+                     class="form-label">
+                Bear
+              </label>
+
+              <app-dropdown-bear-times formControlName="bear"
+                                       [invalid]="isInvalid('bear')"
+                                       selectId="bearTime"
+                                       placeholder="Choose a bear time" />
+            </div>
+
+            <div class="col-md-4">
+              <label for="status"
+                     class="form-label">
+                Status
+              </label>
+
+              <app-dropdown-statuses formControlName="status"
+                                     [invalid]="isInvalid('status')"
+                                     selectId="status"
+                                     placeholder="Choose a status" />
+            </div>
+            <div class="col-md-4">
+              <label for="rank"
+                     class="form-label">
+                Rank
+              </label>
+
+              <app-dropdown-ranks formControlName="rank"
+                                  [invalid]="isInvalid('rank')"
+                                  selectId="rank"
+                                  placeholder="Choose a rank" />
+            </div>
+          </div>
+          <div class="col-12">
+            <label for="notes"
+                   class="form-label">
+              Notes
+            </label>
+
+            <textarea id="notes"
+                      class="form-control"
+                      formControlName="notes"
+                      rows="2"></textarea>
+          </div>
+        </section>
+
+        <section class="mb-4">
+          <h2 class="h5 border-bottom pb-2 mb-3">
+            Additional Info
+          </h2>
+
+          <div class="row g-3">
+            <div class="col-sm-6 col-lg-3">
+              <label for="furnaceLevel"
+                     class="form-label">
+                Furnace level
+              </label>
+
+              <input id="furnaceLevel"
+                     type="number"
+                     class="form-control"
+                     formControlName="furnace_level"
+                     min="0"
+                     step="1"
+                     [class.is-invalid]="isInvalid('furnace_level')" />
+
+              <div class="invalid-feedback">
+                Level cannot be negative.
+              </div>
+            </div>
+
+            <div class="col-md-4">
+              <label for="power"
+                     class="form-label">
+                Power
+              </label>
+
+              <input id="power"
+                     type="number"
+                     class="form-control"
+                     formControlName="power"
+                     min="0"
+                     step="1"
+                     [class.is-invalid]="isInvalid('power')" />
+
+              <div class="invalid-feedback">
+                Power cannot be negative.
+              </div>
+            </div>
+
+            <table class="table table-bordered">
+              <tr>
+                <th></th>
+                <th>FC Level</th>
+                <th>Troop Tier</th>
+              </tr>
+              <tr>
+                <td class="fw-bold">Infantry</td>
+                <td>
+                  <input id="infantryFcLevel"
+                         type="number"
+                         class="form-control"
+                         formControlName="infantry_fc_level"
+                         min="0"
+                         step="1"
+                         [class.is-invalid]="isInvalid('infantry_fc_level')" />
+                  <div class="invalid-feedback">
+                    Level cannot be negative.
+                  </div>
+                </td>
+                <td>
+                  <input id="infantryTier"
+                         type="number"
+                         class="form-control"
+                         formControlName="infantry_tier"
+                         min="0"
+                         step="1"
+                         [class.is-invalid]="isInvalid('infantry_tier')" />
+
+                  <div class="invalid-feedback">
+                    Tier cannot be negative.
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="fw-bold">Lancer</td>
+                <td>
+                  <input id="lancerFcLevel"
+                         type="number"
+                         class="form-control"
+                         formControlName="lancer_fc_level"
+                         min="0"
+                         step="1"
+                         [class.is-invalid]="isInvalid('lancer_fc_level')" />
+                  <div class="invalid-feedback">
+                    Level cannot be negative.
+                  </div>
+                </td>
+                <td>
+                  <input id="lancerTier"
+                         type="number"
+                         class="form-control"
+                         formControlName="lancer_tier"
+                         min="0"
+                         step="1"
+                         [class.is-invalid]="isInvalid('lancer_tier')" />
+
+                  <div class="invalid-feedback">
+                    Tier cannot be negative.
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="fw-bold">Marksman</td>
+                <td>
+                  <input id="marksmanFcLevel"
+                         type="number"
+                         class="form-control"
+                         formControlName="marksman_fc_level"
+                         min="0"
+                         step="1"
+                         [class.is-invalid]="isInvalid('marksman_fc_level')" />
+                  <div class="invalid-feedback">
+                    Level cannot be negative.
+                  </div>
+                </td>
+                <td>
+                  <input id="marksmanTier"
+                         type="number"
+                         class="form-control"
+                         formControlName="marksman_tier"
+                         min="0"
+                         step="1"
+                         [class.is-invalid]="isInvalid('marksman_tier')" />
+
+                  <div class="invalid-feedback">
+                    Tier cannot be negative.
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+          </div>
+
+        </section>
+
+
+        <div class="d-flex justify-content-end gap-2">
+          <a class="btn btn-outline-secondary"
+             (click)="cancel()">
+            Cancel
+          </a>
+
+          <button type="submit"
+                  class="btn btn-primary"
+                  [disabled]="isSaving">
+            <span *ngIf="isSaving"
+                  class="spinner-border spinner-border-sm me-2"
+                  aria-hidden="true"></span>
+            @if(mode==='UPDATE'){
+            {{ isSaving ? 'Updating...' : 'Update' }}
+            } @else {
+            {{ isSaving ? 'Creating...' : 'Create' }}
+            }
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

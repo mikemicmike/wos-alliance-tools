@@ -1,0 +1,30 @@
+.empty-state {
+  padding: 4rem 1rem;
+}
+
+.member-row {
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+
+  &:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline: 2px solid var(--bs-primary);
+    outline-offset: -2px;
+  }
+
+  &:hover > td {
+    background-color: var(--bs-tertiary-bg);
+  }
+}
+
+.l1 {
+  color: white;
+  background-color: #0d35b9;
+}
+.l2 {
+  color: white;
+  background-color: #04666d;
+}

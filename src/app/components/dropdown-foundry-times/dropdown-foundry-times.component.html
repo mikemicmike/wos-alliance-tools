@@ -1,0 +1,30 @@
+<select [id]="selectId"
+        class="form-select"
+        [class.is-invalid]="invalid"
+        [formControl]="selectControl"
+        (blur)="markAsTouched()">
+  <option [ngValue]="''">
+    {{placeholder}}
+  </option>
+
+  <option *ngFor="
+      let foundryTime of foundryTimes;
+      trackBy: trackByFoundryTime
+    "
+          [ngValue]="foundryTime">
+    {{ foundryTime }}
+  </option>
+</select>
+
+<div *ngIf="errorMessage"
+     class="form-text text-danger">
+  {{ errorMessage }}
+</div>
+
+<div *ngIf="
+    !errorMessage &&
+    foundryTimes.length === 0
+  "
+     class="form-text">
+  No foundryTimes have been configured
+</div>

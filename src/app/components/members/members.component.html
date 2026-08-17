@@ -1,0 +1,226 @@
+@if (loading()) {
+<p>Loading...</p>
+} @else {
+<main class="p-2">
+
+  <section class="row g-3 mb-2"
+           aria-label="Alliance statistics">
+
+    <div class="col-12 col-sm-3">
+      <article class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <p class="text-body-secondary mb-2">
+            Active
+          </p>
+
+          <p class="fs-2 fw-bold text-success mb-0">
+            {{ activeMembers() }}
+          </p>
+        </div>
+      </article>
+    </div>
+
+    <div class="col-12 col-sm-3">
+      <article class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <p class="text-body-secondary mb-2">
+            No Longer Here
+          </p>
+
+          <p class="fs-2 fw-bold text-warning-emphasis mb-0">
+            {{ goneMembers() }}
+          </p>
+        </div>
+      </article>
+    </div>
+    <div class="col-12 col-sm-3">
+      <article class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <p class="text-body-secondary mb-2">
+            Transferred
+          </p>
+
+          <p class="fs-2 fw-bold text-warning-emphasis mb-0">
+            {{ transferredMembers() }}
+          </p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="card border-0 shadow-sm">
+    <div class="card-body border-bottom">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-lg-5">
+          <label class="form-label fw-semibold"
+                 for="member-search">
+            Search members
+          </label>
+
+          <input id="member-search"
+                 type="search"
+                 class="form-control"
+                 placeholder="Search by ID, name, role"
+                 [value]="searchTerm()"
+                 (input)="setSearchTerm($event)" />
+        </div>
+
+        <div class="col-12 col-sm-8 col-lg-4">
+          <label class="form-label fw-semibold"
+                 for="status-filter">
+            Status
+          </label>
+
+          <select id="status-filter"
+                  class="form-select"
+                  [value]="statusFilter()"
+                  (change)="setStatusFilter($event)">
+            <option value="All">All statuses</option>
+            <option value="Active">Active</option>
+            <option value="Quit">Quit</option>
+            <option value="Transferred">Transferred</option>
+            <option value="Other_Alliance">Other Alliance</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-sm-4 col-lg-3">
+          <div class="d-flex justify-content-end gap-2">
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    (click)="clearFilters()">
+              Clear
+            </button>
+
+            <a [routerLink]="['/member/update/']"
+               type="button"
+               class="btn btn-primary text-nowrap">
+              Add Member
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover table-sm table-condensed align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th scope="col">Id</th>
+            <th scope="col">Name</th>
+            <th scope="col">Status</th>
+            <th scope="col">Rank</th>
+            <th style="min-width: 100px"
+                scope="col">Joined</th>
+            <th scope="col">Power</th>
+            <th style="min-width: 75px"
+                scope="col">Bear</th>
+            <th scope="col">Furnace</th>
+            <th scope="col">Infantry</th>
+            <th scope="col">Lancer</th>
+            <th scope="col">Marksman</th>
+            <th scope="col">Last CC</th>
+            <th scope="col">Last Foundry</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (
+          member of filteredMembers();
+          track member.id
+          ) {
+          <tr class="clickable"
+              (click)="memberClick(member.id)">
+            <td class="text-body-secondary">
+              #{{ member.gameId }}
+            </td>
+
+            <td>
+              <div class="d-flex align-items-center gap-3">
+                <div>
+                  <div class="fw-semibold">
+                    {{ member.name }}
+                  </div>
+
+                  @if (member.notes) {
+                  <div class="small text-body-secondary">
+                    {{ member.notes }}
+                  </div>
+                  }
+                </div>
+              </div>
+            </td>
+
+            <td>
+              <span class="badge rounded-pill"
+                    [style.color]="member.statuses.color">
+                {{ member.statuses.status }}
+              </span>
+            </td>
+            <td>{{ member.rank }}</td>
+            <td>{{ member.joined }}</td>
+            <td>{{ member.power|number}}</td>
+            <td>{{ member.bear_times?.label }}</td>
+            <td>{{ member.furnace_level }}</td>
+            <td>T{{ member.infantry_tier }}/FC{{ member.infantry_fc_level }}</td>
+            <td>T{{ member.lancer_tier }}/FC{{ member.lancer_fc_level }}</td>
+            <td>T{{ member.marksman_tier }}/FC{{ member.marksman_fc_level }}</td>
+            <td>
+              @if(member.canyon_clash_participants[0]){
+              <span [class.text-success]="member.canyon_clash_participants[0].showed_up"
+                    [class.text-warning]="member.canyon_clash_participants[0].showed_up == null"
+                    [class.text-danger]="member.canyon_clash_participants[0].showed_up === false">
+                {{ member.canyon_clash_participants[0].canyon_clashes.date }}
+                @if(member.canyon_clash_participants[0].score){
+                ({{member.canyon_clash_participants[0].score | number}})
+                }
+              </span>
+
+              }
+            </td>
+            <td>
+              @if(member.foundry_participants[0]){
+              <span [class.text-success]="member.foundry_participants[0].showed_up"
+                    [class.text-warning]="member.foundry_participants[0].showed_up == null"
+                    [class.text-danger]="member.foundry_participants[0].showed_up === false">
+                {{ member.foundry_participants[0].foundries.date }}
+                @if(member.foundry_participants[0].score){
+                ({{member.foundry_participants[0].score | number}})
+                }
+              </span>
+
+              }
+            </td>
+
+          </tr>
+          } @empty {
+          <tr>
+            <td colspan="8">
+              <div class="empty-state text-center">
+                <h2 class="h5">
+                  No members found
+                </h2>
+
+                <p class="text-body-secondary mb-3">
+                  Try changing your search or status filter.
+                </p>
+
+                <button type="button"
+                        class="btn btn-outline-primary"
+                        (click)="clearFilters()">
+                  Clear filters
+                </button>
+              </div>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="card-footer bg-white text-body-secondary small py-3">
+      Showing {{ filteredMembers().length }}
+      of {{ totalMembers() }} members
+    </footer>
+  </section>
+</main>
+}

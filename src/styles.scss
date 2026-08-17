@@ -1,0 +1,27 @@
+@import 'bootstrap/scss/bootstrap';
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #f4f6f9;
+}
+
+.alliance-theme-purple {
+  background-color: #6f42c1;
+}
+
+.alliance-theme-orange {
+  background-color: #bb7a26;
+}
+
+.alliance-theme-blue {
+  background-color: #2d2696;
+}
+
+.clickable {
+  cursor: pointer;
+}

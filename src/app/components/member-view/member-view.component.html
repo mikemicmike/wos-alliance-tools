@@ -1,0 +1,619 @@
+<!-- member-details-card.component.html -->
+
+<div class="card border-0 shadow-sm member-card">
+  <div *ngIf="loading()"
+       class="card-body text-center py-5">
+    <div class="spinner-border"
+         aria-hidden="true"></div>
+
+    <div class="mt-3 text-body-secondary">
+      Loading member details...
+    </div>
+  </div>
+
+  <div *ngIf="errorMessage && !loading()"
+       class="card-body">
+    <div class="alert alert-danger mb-0">
+      {{ errorMessage }}
+    </div>
+  </div>
+
+  <ng-container *ngIf="member as member">
+    <div class="card-header bg-body p-4">
+      <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+        <div>
+          <div class="d-flex align-items-center flex-wrap gap-2">
+            <h2 class="h3 mb-0">
+              {{ member.name }}
+            </h2>
+
+            <span *ngIf="member.statuses as status"
+                  class="badge member-status">
+              <span class="status-dot"
+                    [style.backgroundColor]="
+                  status.color || '#6c757d'
+                "></span>
+
+              {{ status.status }}
+            </span>
+          </div>
+
+          <div class="text-body-secondary mt-1">
+            Member ID: {{ member.gameId }}
+          </div>
+        </div>
+
+        <div class="text-md-end">
+
+          <button type="button"
+                  class="btn btn-primary"
+                  (click)="update()">
+            Update
+          </button>
+
+          <div class="fw-semibold">
+            Bear {{ member.bear_times?.label || 'Not assigned' }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-body p-4">
+      <!-- Member overview -->
+      <section class="mb-5">
+        <h3 class="section-title">
+          Member overview
+        </h3>
+
+        <div class="row g-3">
+          <div class="col-sm-6 col-lg-3">
+            <div class="information-box">
+              <div class="information-label">
+                Power
+              </div>
+
+              <div class="information-value">
+                {{
+                member.power !== null
+                ? (member.power | number)
+                : '—'
+                }}
+              </div>
+            </div>
+          </div>
+
+          <div class="col-sm-6 col-lg-3">
+            <div class="information-box">
+              <div class="information-label">
+                Furnace level
+              </div>
+
+              <div class="information-value">
+                {{ member.furnace_level ?? '—' }}
+              </div>
+            </div>
+          </div>
+
+          <div class="col-sm-6 col-lg-3">
+            <div class="information-box">
+              <div class="information-label">
+                Joined
+              </div>
+
+              <div class="information-value">
+                <ng-container *ngIf="member.joined; else noJoinedDate">
+                  {{
+                  member.joined
+                  | date: 'mediumDate' : 'UTC'
+                  }}
+                </ng-container>
+
+                <ng-template #noJoinedDate>
+                  —
+                </ng-template>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-sm-6 col-lg-3">
+            <div class="information-box">
+              <div class="information-label">
+                Added
+              </div>
+
+              <div class="information-value">
+                {{
+                member.created_at
+                | date: 'mediumDate'
+                }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive mt-4">
+          <table class="table table-bordered align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th scope="col">Troop</th>
+                <th scope="col">FC level</th>
+                <th scope="col">Troop tier</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr>
+                <th scope="row">Infantry</th>
+                <td>
+                  {{ member.infantry_fc_level ?? '—' }}
+                </td>
+                <td>
+                  {{ member.infantry_tier ?? '—' }}
+                </td>
+              </tr>
+
+              <tr>
+                <th scope="row">Lancer</th>
+                <td>
+                  {{ member.lancer_fc_level ?? '—' }}
+                </td>
+                <td>
+                  {{ member.lancer_tier ?? '—' }}
+                </td>
+              </tr>
+
+              <tr>
+                <th scope="row">Marksman</th>
+                <td>
+                  {{ member.marksman_fc_level ?? '—' }}
+                </td>
+                <td>
+                  {{ member.marksman_tier ?? '—' }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div *ngIf="member.notes"
+             class="mt-4">
+          <div class="fw-semibold mb-1">
+            Notes
+          </div>
+
+          <div class="notes-box">
+            {{ member.notes }}
+          </div>
+        </div>
+      </section>
+
+      <!-- Foundry -->
+      <section class="mb-5">
+        <h3 class="section-title">
+          Foundry participation
+        </h3>
+
+        <div class="row g-3 mb-4">
+          <div class="col-sm-6 col-xl-3">
+            <div class="summary-box">
+              <div class="summary-label">
+                Total participations
+              </div>
+
+              <div class="summary-value">
+                {{ foundrySummary.total }}
+              </div>
+
+              <div class="summary-detail">
+                {{ foundrySummary.showedUp }} attended,
+                {{ foundrySummary.missed }} missed
+              </div>
+            </div>
+          </div>
+
+          <div class="col-sm-6 col-xl-3">
+            <div class="summary-box">
+              <div class="summary-label">
+                Overall attendance
+              </div>
+
+              <div class="summary-value">
+                {{
+                foundrySummary.attendancePercent
+                | number: '1.0-0'
+                }}%
+              </div>
+
+              <div class="progress mt-2">
+                <div class="progress-bar"
+                     role="progressbar"
+                     [style.width.%]="
+                    foundrySummary.attendancePercent
+                  "
+                     [attr.aria-valuenow]="
+                    foundrySummary.attendancePercent
+                  "
+                     aria-valuemin="0"
+                     aria-valuemax="100"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-sm-6 col-xl-3">
+            <div class="summary-box">
+              <div class="summary-label">
+                Regular registrations
+              </div>
+
+              <div class="summary-value">
+                {{ foundrySummary.regular.total }}
+              </div>
+
+              <div class="summary-detail">
+                {{ foundrySummary.regular.showedUp }}
+                attended ·
+                {{
+                foundrySummary.regular
+                .attendancePercent
+                | number: '1.0-0'
+                }}%
+              </div>
+            </div>
+          </div>
+
+          <div class="col-sm-6 col-xl-3">
+            <div class="summary-box">
+              <div class="summary-label">
+                Substitute registrations
+              </div>
+
+              <div class="summary-value">
+                {{ foundrySummary.substitute.total }}
+              </div>
+
+              <div class="summary-detail">
+                {{
+                foundrySummary.substitute.showedUp
+                }}
+                attended ·
+                {{
+                foundrySummary.substitute
+                .attendancePercent
+                | number: '1.0-0'
+                }}%
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="
+            member.foundry_participants.length;
+            else noFoundries
+          "
+             class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Registration</th>
+                <th>Power</th>
+                <th>Score</th>
+                <th>Attendance</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr *ngFor="
+                  let participation of member.foundry_participants;
+                  trackBy: trackByParticipationId
+                ">
+                <td>
+                  {{
+                  participation.foundries.date
+                  | date: 'mediumDate' : 'UTC'
+                  }}
+                </td>
+
+                <td>
+                  {{ participation.foundries.time }}
+                </td>
+
+                <td>
+                  <span class="badge"
+                        [ngClass]="
+                      participation.is_substitute
+                        ? 'text-bg-info'
+                        : 'text-bg-secondary'
+                    ">
+                    {{
+                    participation.is_substitute
+                    ? 'Substitute'
+                    : 'Regular'
+                    }}
+                  </span>
+                </td>
+
+                <td>
+                  {{
+                  participation.power !== null
+                  ? (participation.power | number)
+                  : '—'
+                  }}
+                </td>
+
+                <td>
+                  {{
+                  participation.score !== null
+                  ? (participation.score | number)
+                  : '—'
+                  }}
+                </td>
+
+                <td>
+                  <span class="badge"
+                        [ngClass]="
+                      participation.showed_up
+                        ? 'text-bg-success'
+                        : 'text-bg-danger'
+                    ">
+                    {{
+                    participation.showed_up
+                    ? 'Showed up'
+                    : 'No show'
+                    }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <ng-template #noFoundries>
+          <div class="empty-state">
+            No Foundry participation has been recorded.
+          </div>
+        </ng-template>
+      </section>
+
+      <!-- Canyon Clash -->
+      <section class="mb-5">
+        <h3 class="section-title">
+          Canyon Clash participation
+        </h3>
+
+        <div class="row g-3 mb-4">
+          <div class="col-sm-6 col-xl-3">
+            <div class="summary-box">
+              <div class="summary-label">
+                Total participations
+              </div>
+
+              <div class="summary-value">
+                {{ canyonClashSummary.total }}
+              </div>
+
+              <div class="summary-detail">
+                {{ canyonClashSummary.showedUp }}
+                attended,
+                {{ canyonClashSummary.missed }}
+                missed
+              </div>
+            </div>
+          </div>
+
+          <div class="col-sm-6 col-xl-3">
+            <div class="summary-box">
+              <div class="summary-label">
+                Overall attendance
+              </div>
+
+              <div class="summary-value">
+                {{
+                canyonClashSummary.attendancePercent
+                | number: '1.0-0'
+                }}%
+              </div>
+
+              <div class="progress mt-2">
+                <div class="progress-bar"
+                     role="progressbar"
+                     [style.width.%]="
+                    canyonClashSummary.attendancePercent
+                  "
+                     [attr.aria-valuenow]="
+                    canyonClashSummary.attendancePercent
+                  "
+                     aria-valuemin="0"
+                     aria-valuemax="100"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-sm-6 col-xl-3">
+            <div class="summary-box">
+              <div class="summary-label">
+                Regular registrations
+              </div>
+
+              <div class="summary-value">
+                {{
+                canyonClashSummary.regular.total
+                }}
+              </div>
+
+              <div class="summary-detail">
+                {{
+                canyonClashSummary.regular.showedUp
+                }}
+                attended ·
+                {{
+                canyonClashSummary.regular
+                .attendancePercent
+                | number: '1.0-0'
+                }}%
+              </div>
+            </div>
+          </div>
+
+          <div class="col-sm-6 col-xl-3">
+            <div class="summary-box">
+              <div class="summary-label">
+                Substitute registrations
+              </div>
+
+              <div class="summary-value">
+                {{
+                canyonClashSummary.substitute.total
+                }}
+              </div>
+
+              <div class="summary-detail">
+                {{
+                canyonClashSummary.substitute
+                .showedUp
+                }}
+                attended ·
+                {{
+                canyonClashSummary.substitute
+                .attendancePercent
+                | number: '1.0-0'
+                }}%
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="
+            member.canyon_clash_participants
+              .length;
+            else noCanyonClashes
+          "
+             class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Registration</th>
+                <th>Power</th>
+                <th>Score</th>
+                <th>Attendance</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr *ngFor="
+                  let participation of member.canyon_clash_participants;
+                  trackBy: trackByParticipationId
+                ">
+                <td>
+                  {{
+                  participation.canyon_clashes.date
+                  | date: 'mediumDate' : 'UTC'
+                  }}
+                </td>
+
+                <td>
+                  {{ participation.canyon_clashes.time }}
+                </td>
+
+                <td>
+                  <span class="badge"
+                        [ngClass]="
+                      participation.is_substitute
+                        ? 'text-bg-info'
+                        : 'text-bg-secondary'
+                    ">
+                    {{
+                    participation.is_substitute
+                    ? 'Substitute'
+                    : 'Regular'
+                    }}
+                  </span>
+                </td>
+
+                <td>
+                  {{
+                  participation.power !== null
+                  ? (participation.power | number)
+                  : '—'
+                  }}
+                </td>
+
+                <td>
+                  {{
+                  participation.score !== null
+                  ? (participation.score | number)
+                  : '—'
+                  }}
+                </td>
+
+                <td>
+                  <span class="badge"
+                        [ngClass]="
+                      participation.showed_up
+                        ? 'text-bg-success'
+                        : 'text-bg-danger'
+                    ">
+                    {{
+                    participation.showed_up
+                    ? 'Showed up'
+                    : 'No show'
+                    }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <ng-template #noCanyonClashes>
+          <div class="empty-state">
+            No Canyon Clash participation has been
+            recorded.
+          </div>
+        </ng-template>
+      </section>
+
+      <!-- Recent member changes -->
+      <section *ngIf="member.member_log.length">
+        <h3 class="section-title">
+          Recent changes
+        </h3>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Field</th>
+                <th>Previous</th>
+                <th>New</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              <tr *ngFor="
+                  let log of member.member_log
+                    | slice: 0 : 10;
+                  trackBy: trackByLogId
+                ">
+                <td>
+                  {{
+                  log.created_at
+                  | date: 'medium'
+                  }}
+                </td>
+                <td>{{ log.type }}</td>
+                <td>{{ previousLogValue(log) }}</td>
+                <td>{{ newLogValue(log) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+  </ng-container>
+</div>

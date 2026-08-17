@@ -1,0 +1,35 @@
+<select [id]="selectId"
+        class="form-select"
+        [class.is-invalid]="invalid"
+        [formControl]="selectControl"
+        (blur)="markAsTouched()">
+  <option [ngValue]="null">
+    {{
+    loading
+    ? 'Loading ranks...'
+    : placeholder
+    }}
+  </option>
+
+  <option *ngFor="
+      let rank of ranks;
+      trackBy: trackByRank
+    "
+          [ngValue]="rank">
+    {{ rank }}
+  </option>
+</select>
+
+<div *ngIf="errorMessage"
+     class="form-text text-danger">
+  {{ errorMessage }}
+</div>
+
+<div *ngIf="
+    !loading &&
+    !errorMessage &&
+    ranks.length === 0
+  "
+     class="form-text">
+  No ranks have been configured
+</div>

@@ -1,0 +1,82 @@
+// member-details-card.component.scss
+
+:host {
+  display: block;
+}
+
+.member-card {
+  max-width: 1200px;
+  margin-inline: auto;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  padding-bottom: 0.65rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.member-status {
+  color: var(--bs-body-color);
+  background: var(--bs-tertiary-bg);
+  border: 1px solid var(--bs-border-color);
+}
+
+.status-dot {
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  margin-right: 0.35rem;
+  border-radius: 50%;
+}
+
+.information-box,
+.summary-box {
+  height: 100%;
+  padding: 1rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-body-bg);
+}
+
+.information-label,
+.summary-label {
+  font-size: 0.8rem;
+  color: var(--bs-secondary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.information-value,
+.summary-value {
+  margin-top: 0.25rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.summary-detail {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--bs-secondary-color);
+}
+
+.notes-box,
+.empty-state {
+  padding: 1rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background: var(--bs-tertiary-bg);
+}
+
+.notes-box {
+  white-space: pre-wrap;
+}
+
+.empty-state {
+  color: var(--bs-secondary-color);
+  text-align: center;
+}
+
+.progress {
+  height: 0.45rem;
+}

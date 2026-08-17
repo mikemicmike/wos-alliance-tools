@@ -1,0 +1,56 @@
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.app-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top right, rgba(13, 110, 253, 0.08), transparent 28rem), #f4f6f9;
+}
+
+.alliance-logo {
+  display: inline-grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: 0.75rem;
+  background: var(--bs-primary);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.alliance-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 40px;
+  height: 40px;
+
+  padding-inline: 0.5rem;
+
+  border-radius: 10px;
+
+  background: var(--bs-primary);
+  color: white;
+
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.nav-link {
+  cursor: pointer;
+  text-decoration: none;
+
+  &:hover {
+    color: white !important;
+  }
+}
+
+.navbar-divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.2);
+}

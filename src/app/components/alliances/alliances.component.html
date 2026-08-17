@@ -1,0 +1,123 @@
+@if (loading()) {
+<p>Loading...</p>
+} @else {
+
+<main class="p-2">
+  <section class="card border-0 shadow-sm">
+    @if (error()) {
+    <h3 class="text-danger">{{ error() }}</h3>
+    }
+    <div class="card-body border-bottom">
+      <div class="row g-3 mb-3 align-items-end">
+        <div class="col-12 col-sm">
+          <label class="form-label fw-semibold"
+                 for="alliance-search">
+            Search alliances
+          </label>
+
+          <input id="alliance-search"
+                 type="search"
+                 class="form-control"
+                 placeholder="Search by ID, name, role"
+                 [value]="searchTerm()"
+                 (input)="setSearchTerm($event)" />
+        </div>
+
+
+        <div class="col-12 col-sm-auto ms-sm-auto">
+          <div class="d-flex justify-content-end gap-2">
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    (click)="clearFilters()">
+              Clear
+            </button>
+            <button type="button"
+                    class="btn btn-primary"
+                    title="Connect this button to your add-alliance form">
+              Add Alliance
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <caption class="visually-hidden">
+            Alliances
+          </caption>
+
+          <thead class="table-light">
+            <tr>
+              <th scope="col">Tag</th>
+              <th scope="col">Name</th>
+              <th scope="col">Active Members</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            @for (
+            alliance of filteredAlliances();
+            track alliance.tag
+            ) {
+            <tr class="clickable"
+                (click)="allianceClicked(alliance.tag)">
+              <td class="text-body-secondary">
+                <h5>
+                  <span class="badge"
+                        [class.alliance-theme-blue]="alliance.theme ==='BLUE'"
+                        [class.alliance-theme-orange]="alliance.theme ==='ORANGE'"
+                        [class.alliance-theme-purple]="alliance.theme ==='PURPLE'">
+                    {{ alliance.tag }}
+                  </span>
+                </h5>
+              </td>
+
+              <td>
+                <div class="d-flex align-items-center gap-3">
+                  <div>
+                    <div class="fw-semibold">
+                      {{ alliance.name }}
+                    </div>
+                  </div>
+                </div>
+              </td>
+
+              <td>
+                <span class="badge rounded-pill text-bg-success">
+                  <!-- {{ alliance.memberCount }} -->
+                </span>
+              </td>
+            </tr>
+            } @empty {
+            <tr>
+              <td colspan="8">
+                <div class="empty-state text-center">
+                  <h2 class="h5">
+                    No alliances found
+                  </h2>
+
+                  <p class="text-body-secondary mb-3">
+                    Try changing your search or status filter.
+                  </p>
+
+                  <button type="button"
+                          class="btn btn-outline-primary"
+                          (click)="clearFilters()">
+                    Clear filters
+                  </button>
+                </div>
+              </td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="card-footer bg-white text-body-secondary small py-3">
+        Showing {{ filteredAlliances().length }}
+        of {{ totalAlliances() }} alliances
+      </footer>
+    </div>
+  </section>
+</main>
+}

@@ -1,0 +1,215 @@
+@if (loading()) {
+<p>Loading...</p>
+} @else {
+<main class="p-2">
+
+  <section class="row g-3 mb-2"
+           aria-label="Alliance statistics">
+
+    <div class="col-12 col-sm-2">
+      <article class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <p class="text-body-secondary mb-2">
+            Wins
+          </p>
+
+          <p class="mb-0">
+            <span class="fs-2 fw-bold text-success ">{{ winPercentage() | number:'1.0-0' }}%</span>
+            <span class="fs-4 text-muted">({{wonFoundries()}}-{{lostFoundries()}})</span>
+          </p>
+        </div>
+      </article>
+    </div>
+
+    <div class="col-12 col-sm-2">
+      <article class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <p class="text-body-secondary mb-2">
+            Unknown
+          </p>
+
+          <p class="fs-2 fw-bold text-warning-emphasis mb-0">
+            {{ unknownFoundries() }}
+          </p>
+        </div>
+      </article>
+    </div>
+
+    <div class="col-12 col-sm-2">
+      <article class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <p class="text-body-secondary mb-2">
+            Upcoming
+          </p>
+
+          <p class="fs-2 fw-bold text-warning-emphasis mb-0">
+            {{ upcomingFoundries() }}
+          </p>
+        </div>
+      </article>
+    </div>
+
+    <div class="col-12 col-sm-2">
+      <article class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <p class="text-body-secondary mb-2">
+            Finished
+          </p>
+
+          <p class="fs-2 fw-bold text-warning-emphasis mb-0">
+            {{ finishedFoundries() }}
+          </p>
+        </div>
+      </article>
+    </div>
+
+    <div class="col-12 col-sm-2">
+      <article class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <p class="text-body-secondary mb-2">
+            Completed
+          </p>
+
+          <p class="fs-2 fw-bold text-warning-emphasis mb-0">
+            {{ completedFoundries() }}
+          </p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="card border-0 shadow-sm">
+    <div class="card-body border-bottom">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-lg-4">
+          <label class="form-label fw-semibold"
+                 for="foundry-search">
+            Search Foundries
+          </label>
+
+          <input id="foundry-search"
+                 type="search"
+                 class="form-control"
+                 placeholder="Search by Date, Time, Opponent"
+                 [value]="searchTerm()"
+                 (input)="setSearchTerm($event)" />
+        </div>
+
+        <div class="col-12 col-sm-8 col-lg-2">
+          <label class="form-label fw-semibold"
+                 for="status-filter">
+            Status
+          </label>
+
+          <select id="status-filter"
+                  class="form-select"
+                  [value]="statusFilter()"
+                  (change)="setStatusFilter($event)">
+            <option value="All">All statuses</option>
+            <option value="Upcoming">Upcoming</option>
+            <option value="Finished">Finished</option>
+            <option value="Completed">Completed</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-sm-8 col-lg-2">
+          <label class="form-label fw-semibold"
+                 for="legion-filter">
+            Legion
+          </label>
+
+          <select id="legion-filter"
+                  class="form-select"
+                  type="number"
+                  [value]="legionFilter()"
+                  (change)="setLegionFilter($event)">
+            <option value="0">All legions</option>
+            <option value="1">L1</option>
+            <option value="2">L2</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-sm-4 col-lg-4">
+          <div class="d-flex justify-content-end gap-2">
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    (click)="clearFilters()">
+              Clear
+            </button>
+
+            <a [routerLink]="['/foundry/add/']"
+               type="button"
+               class="btn btn-primary text-nowrap">
+              Add Foundry
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover table-sm table-condensed align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Time</th>
+            <th scope="col">Legion</th>
+            <th scope="col">Our Score</th>
+            <th scope="col">Opponent</th>
+            <th scope="col">Opponent Score</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (
+          foundry of filteredFoundries();
+          track foundry.id
+          ) {
+          <tr class="clickable"
+              (click)="foundryClick(foundry)">
+            <td class="text-body-secondary">
+              {{ foundry.date }}
+            </td>
+            <td class="text-body-secondary">
+              {{ foundry.time }}
+            </td>
+            <td>
+              <span class="badge rounded-pill fw-bold py-2 px-4"
+                    [class.l1]="foundry.legion === 1"
+                    [class.l2]="foundry.legion === 2">
+                L{{ foundry.legion }}
+              </span>
+            </td>
+
+            <td>{{ foundry.our_score|number }}</td>
+            <td>{{ foundry.opponent }}</td>
+            <td>{{ foundry.opponent_score|number}}</td>
+            <td>
+              @if(foundry.date > stringDateCurrent()){
+              <span class="badge rounded-pill bg-warning">
+                Upcoming
+              </span>
+              } @else if (foundry.date === stringDateCurrent()){
+              <span class="badge rounded-pill bg-danger">
+                Today
+              </span>
+              } @else {
+              <span class="badge rounded-pill bg-success">
+                Completed
+              </span>
+              }
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="card-footer bg-white text-body-secondary small py-3">
+      Showing {{ filteredFoundries().length }}
+      of {{ totalFoundries() }} Foundries
+    </footer>
+  </section>
+</main>
+}

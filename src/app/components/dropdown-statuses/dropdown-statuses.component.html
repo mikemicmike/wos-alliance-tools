@@ -1,0 +1,35 @@
+<select [id]="selectId"
+        class="form-select"
+        [class.is-invalid]="invalid"
+        [formControl]="selectControl"
+        (blur)="markAsTouched()">
+  <option [ngValue]="null">
+    {{
+    loading
+    ? 'Loading statuses...'
+    : placeholder
+    }}
+  </option>
+
+  <option *ngFor="
+      let status of statuses;
+      trackBy: trackByStatusId
+    "
+          [ngValue]="status.id">
+    {{ status.status }}
+  </option>
+</select>
+
+<div *ngIf="errorMessage"
+     class="form-text text-danger">
+  {{ errorMessage }}
+</div>
+
+<div *ngIf="
+    !loading &&
+    !errorMessage &&
+    statuses.length === 0
+  "
+     class="form-text">
+  No statuses have been configured
+</div>

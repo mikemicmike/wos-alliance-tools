@@ -1,0 +1,61 @@
+.empty-state {
+  padding: 4rem 1rem;
+}
+
+.member-row {
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+
+  &:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline: 2px solid var(--bs-primary);
+    outline-offset: -2px;
+  }
+
+  &:hover > td {
+    background-color: var(--bs-tertiary-bg);
+  }
+}
+
+.member-row-expanded > td {
+  background-color: var(--bs-primary-bg-subtle);
+  border-bottom-color: transparent;
+}
+
+.expansion-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  font-size: 0.9rem;
+  color: var(--bs-secondary-color);
+}
+
+.member-details-row {
+  scroll-margin-top: 1rem;
+
+  > td {
+    padding: 0;
+    background-color: var(--bs-tertiary-bg);
+  }
+}
+
+.member-details-container {
+  padding: 1rem;
+  animation: member-details-open 160ms ease-out;
+}
+
+@keyframes member-details-open {
+  from {
+    opacity: 0;
+    transform: translateY(-0.4rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

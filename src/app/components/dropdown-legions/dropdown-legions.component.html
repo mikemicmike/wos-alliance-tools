@@ -1,0 +1,28 @@
+<select [id]="selectId"
+        class="form-select"
+        [class.is-invalid]="invalid"
+        [formControl]="selectControl"
+        (blur)="markAsTouched()">
+
+  <option *ngFor="
+      let legion of legions;
+      trackBy: trackByLegion
+    "
+          [ngValue]="legion">
+    {{ legion }}
+  </option>
+</select>
+
+<div *ngIf="errorMessage"
+     class="form-text text-danger">
+  {{ errorMessage }}
+</div>
+
+<div *ngIf="
+    !loading &&
+    !errorMessage &&
+    legions.length === 0
+  "
+     class="form-text">
+  No legions have been configured
+</div>

@@ -1,0 +1,27 @@
+:host {
+  display: block;
+}
+
+.login-page {
+  min-height: 100vh;
+}
+
+.login-container {
+  max-width: 440px;
+}
+
+.brand-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 54px;
+  height: 54px;
+
+  border-radius: 12px;
+
+  color: white;
+  background: var(--bs-primary);
+
+  font-weight: 700;
+}

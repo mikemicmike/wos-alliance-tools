@@ -1,0 +1,274 @@
+@if (loading()) {
+<div class="p-4 text-center">
+  <div class="spinner-border"></div>
+</div>
+} @else {
+<main class="container-fluid py-3">
+
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <h1 class="h3 mb-1">Update Foundries</h1>
+    </div>
+  </div>
+
+  @if (error()) {
+  <div class="alert alert-danger">
+    {{ error() }}
+  </div>
+  }
+
+  <form (ngSubmit)="save()">
+    <section class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12 col-md-4">
+            <label for="foundry-date"
+                   class="form-label fw-semibold">
+              Date
+            </label>
+
+            <input id="foundry-date"
+                   type="date"
+                   class="form-control"
+                   [formField]="foundriesForm.date"
+                   (change)="dateChanged()" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    @if(foundriesModel().date){
+    <!-- Foundry summary/header -->
+    <section class="row g-3 mb-3">
+      @for (
+      foundry of foundriesModel().foundries;
+      track $index;
+      let foundryIndex = $index
+      ) {
+      <div class="col-12 col-md-6">
+        <article class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <div class="d-flex justify-content-between mb-3">
+              <h2 class="h5 mb-0">
+                Foundry {{ foundryIndex + 1 }}
+              </h2>
+
+              <span class="badge text-bg-primary">
+                {{ counts()[foundryIndex].total }}
+                participants
+              </span>
+            </div>
+
+            <div class="d-flex">
+
+              <div class="d-block">
+                <label class="form-label fw-semibold"
+                       [for]="'foundry-time-' + foundryIndex">
+                  Time
+                </label>
+
+                <app-dropdown-foundry-times [id]="'foundry-time-' + foundryIndex"
+                                            type="text"
+                                            class="form-control mb-3"
+                                            [formField]="foundriesForm.foundries[foundryIndex].time"
+                                            placeholder="e.g. 19 UTC" />
+              </div>
+
+              <div class="d-block">
+                <label class="form-label fw-semibold"
+                       [for]="'foundry-time-' + foundryIndex">
+                  Legion
+                </label>
+
+                <app-dropdown-legions [id]="'legion' + foundryIndex"
+                                      class="form-control"
+                                      type="number"
+                                      [formField]="foundriesForm.foundries[foundryIndex].legion" />
+              </div>
+
+            </div>
+
+            <div class="d-flex gap-4">
+              <div>
+                <div class="small text-body-secondary">
+                  Regular
+                </div>
+
+                <div class="fs-4 fw-semibold">
+                  {{ counts()[foundryIndex].regular }}
+                </div>
+              </div>
+
+              <div>
+                <div class="small text-body-secondary">
+                  Substitutes
+                </div>
+
+                <div class="fs-4 fw-semibold">
+                  {{ counts()[foundryIndex].subs }}
+                </div>
+              </div>
+
+              <div>
+                <div class="small text-body-secondary">
+                  Total
+                </div>
+
+                <div class="fs-4 fw-semibold">
+                  {{ counts()[foundryIndex].total }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+      }
+    </section>
+
+    <!-- Participant grid -->
+    <section class="card border-0 shadow-sm">
+      <div class="card-header bg-body py-3">
+        <h2 class="h5 mb-0">
+          Participants
+        </h2>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th rowspan="2">ID</th>
+              <th rowspan="2">Member</th>
+
+              <th rowspan="2">
+                Previous Power
+              </th>
+
+              <th rowspan="2">
+                Power
+              </th>
+
+              @for (
+              foundry of foundriesModel().foundries.filter((p_foundry)=>p_foundry.time);
+              track $index;
+              let foundryIndex = $index
+              ) {
+              <th colspan="2"
+                  class="text-center">
+                Foundry {{ foundry.time }}
+              </th>
+              }
+            </tr>
+
+            <tr>
+              @for (
+              foundry of foundriesModel().foundries.filter((p_foundry)=>p_foundry.time);
+              track $index
+              ) {
+              <th class="text-center">
+                Regular
+              </th>
+
+              <th class="text-center">
+                Sub
+              </th>
+              }
+            </tr>
+          </thead>
+
+          <tbody>
+            @for (
+            member of foundriesModel().members;
+            track member.memberId;
+            let memberIndex = $index;
+            ) {
+            <tr>
+              <td class="text-body-secondary">
+                #{{ member.memberId }}
+              </td>
+
+              <td class="fw-semibold text-nowrap">
+                {{ member.name }}
+              </td>
+
+              <td class="text-nowrap">
+                @if (
+                member.previousPower !== null
+                ) {
+                {{
+                member.previousPower
+                | number
+                }} ({{member.previousPowerDate}})
+                } @else {
+                —
+                }
+              </td>
+
+              <td style="min-width: 150px">
+                <input type="number"
+                       class="form-control form-control-sm"
+                       [formField]="foundriesForm.members[memberIndex].power" />
+              </td>
+
+              @for (
+              assigment of member.assignments;
+              track $index;
+              let assignmentIndex = $index
+              ) {
+              @if(foundriesModel().foundries[assignmentIndex].time){
+              <td class="selection-cell">
+                <label class="selection-cell-label"
+                       [class.selected]="assigment.regular"
+                       [for]="'regular-' + memberIndex + '-' + assignmentIndex">
+                  <input #regularInput
+                         [id]="'regular-' + memberIndex + '-' + assignmentIndex"
+                         type="checkbox"
+                         class="form-check-input"
+                         [formField]="foundriesForm.members[memberIndex].assignments[assignmentIndex].regular"
+                         (change)="assignmentChanged(memberIndex, assignmentIndex, 'reg', regularInput.checked)" />
+                </label>
+              </td>
+
+              <td class="selection-cell">
+                <label class="selection-cell-label"
+                       [class.selected]="assigment.sub"
+                       [for]="'sub-' + memberIndex + '-' + assignmentIndex">
+                  <input #subInput
+                         [id]="'sub-' + memberIndex + '-' + assignmentIndex"
+                         type="checkbox"
+                         class="form-check-input"
+                         [formField]="foundriesForm.members[memberIndex].assignments[assignmentIndex].sub"
+                         (change)="assignmentChanged(memberIndex, assignmentIndex, 'sub', subInput.checked)" />
+                </label>
+              </td>
+              }}
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card-footer bg-body d-flex justify-content-end gap-2 py-3">
+        <button type="button"
+                class="btn btn-outline-secondary"
+                (click)="cancel()">
+          Cancel
+        </button>
+
+        <button type="button"
+                (click)="save()"
+                class="btn btn-primary"
+                [disabled]="saving()">
+          @if (saving()) {
+          <span class="spinner-border spinner-border-sm me-2"></span>
+          } @else {
+          Update Foundries
+          }
+
+        </button>
+      </div>
+    </section>
+    }
+  </form>
+</main>
+}
