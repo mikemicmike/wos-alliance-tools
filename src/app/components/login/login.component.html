@@ -73,6 +73,13 @@
             Sign in
             }
           </button>
+
+          <button type="button"
+                  class="btn btn-warning mt-2 w-100"
+                  [disabled]="loading()"
+                  (click)="signup()">
+            Signup Instead
+          </button>
         </form>
       </div>
     </div>

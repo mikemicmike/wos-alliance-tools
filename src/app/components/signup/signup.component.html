@@ -1,0 +1,182 @@
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-12 col-sm-10 col-md-8 col-lg-5 col-xl-4">
+      <div class="card shadow-sm">
+        <div class="card-body p-4">
+          <div class="mb-4">
+            <h1 class="h3 mb-2">Create account</h1>
+            <p class="text-body-secondary mb-0">
+              Enter your details to create your account.
+            </p>
+          </div>
+
+          <form [formGroup]="form"
+                (ngSubmit)="submit()"
+                novalidate>
+            <div class="mb-3">
+              <label for="displayName"
+                     class="form-label">
+                Name
+              </label>
+
+              <input id="displayName"
+                     type="text"
+                     class="form-control"
+                     formControlName="displayName"
+                     autocomplete="name"
+                     placeholder="John Smith"
+                     [class.is-invalid]="
+                  form.controls.displayName.touched &&
+                  form.controls.displayName.invalid
+                " />
+
+              @if (
+              form.controls.displayName.touched &&
+              form.controls.displayName.hasError('required')
+              ) {
+              <div class="invalid-feedback">
+                Name is required.
+              </div>
+              }
+            </div>
+
+            <div class="mb-3">
+              <label for="email"
+                     class="form-label">
+                Email
+              </label>
+
+              <input id="email"
+                     type="email"
+                     class="form-control"
+                     formControlName="email"
+                     autocomplete="email"
+                     placeholder="you@example.com"
+                     [class.is-invalid]="
+                  form.controls.email.touched &&
+                  form.controls.email.invalid
+                " />
+
+              @if (
+              form.controls.email.touched &&
+              form.controls.email.hasError('required')
+              ) {
+              <div class="invalid-feedback">
+                Email is required.
+              </div>
+              } @else if (
+              form.controls.email.touched &&
+              form.controls.email.hasError('email')
+              ) {
+              <div class="invalid-feedback">
+                Enter a valid email address.
+              </div>
+              }
+            </div>
+
+            <div class="mb-3">
+              <label for="password"
+                     class="form-label">
+                Password
+              </label>
+
+              <input id="password"
+                     type="password"
+                     class="form-control"
+                     formControlName="password"
+                     autocomplete="new-password"
+                     placeholder="At least 8 characters"
+                     [class.is-invalid]="
+                  form.controls.password.touched &&
+                  form.controls.password.invalid
+                " />
+
+              @if (
+              form.controls.password.touched &&
+              form.controls.password.hasError('required')
+              ) {
+              <div class="invalid-feedback">
+                Password is required.
+              </div>
+              } @else if (
+              form.controls.password.touched &&
+              form.controls.password.hasError('minlength')
+              ) {
+              <div class="invalid-feedback">
+                Password must be at least 8 characters.
+              </div>
+              }
+            </div>
+
+            <div class="mb-3">
+              <label for="confirmPassword"
+                     class="form-label">
+                Confirm password
+              </label>
+
+              <input id="confirmPassword"
+                     type="password"
+                     class="form-control"
+                     formControlName="confirmPassword"
+                     autocomplete="new-password"
+                     placeholder="Enter your password again"
+                     [class.is-invalid]="
+                  form.controls.confirmPassword.touched &&
+                  form.hasError('passwordsDoNotMatch')
+                " />
+
+              @if (
+              form.controls.confirmPassword.touched &&
+              form.hasError('passwordsDoNotMatch')
+              ) {
+              <div class="invalid-feedback">
+                Passwords do not match.
+              </div>
+              }
+            </div>
+
+            @if (error()) {
+            <div class="alert alert-danger"
+                 role="alert">
+              {{ error() }}
+            </div>
+            }
+
+            @if (success()) {
+            <div class="alert alert-success"
+                 role="alert">
+              {{ success() }}
+            </div>
+            }
+
+            <button type="submit"
+                    class="btn btn-primary w-100"
+                    [disabled]="loading()">
+              @if (loading()) {
+              <span class="spinner-border spinner-border-sm me-2"
+                    aria-hidden="true"></span>
+
+              Creating account...
+              } @else {
+              Create account
+              }
+            </button>
+          </form>
+
+          <hr class="my-4" />
+
+          <p class="text-center mb-0">
+            <span class="text-body-secondary">
+              Already have an account?
+            </span>
+
+            <a routerLink="/login"
+               class="ms-1">
+              Sign in
+            </a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

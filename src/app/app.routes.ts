@@ -11,11 +11,16 @@ import { requireNotApprovedUserProfileGuard } from './guards/require-not-approve
 import { FoundryManageComponent } from './components/foundry-manage/foundry-manage.component';
 import { FoundryListComponent } from './components/foundry-list/foundry-list.component';
 import { FoundryManageMembersComponent } from './components/foundry-manage-members/foundry-manage-members.component';
+import { SignupComponent } from './components/signup/signup.component';
 
 export const routes: Routes = [
   {
     path: 'login',
     component: LoginComponent,
+  },
+  {
+    path: 'signup',
+    component: SignupComponent,
   },
   {
     path: 'profile/missing',

@@ -74,6 +74,9 @@ export class LoginComponent {
     }
   }
 
+  async signup() {
+    this.router.navigate(['signup']);
+  }
   private async navigateAfterLogin(): Promise<void> {
     const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
 

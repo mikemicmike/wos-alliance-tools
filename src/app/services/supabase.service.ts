@@ -5,6 +5,12 @@ import { createClient, Session, User } from '@supabase/supabase-js';
 import { Database } from '../defs/database.types';
 import { environment } from '../../environments/environment';
 
+export interface SignUpRequest {
+  email: string;
+  password: string;
+  displayName: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -104,6 +110,23 @@ export class SupabaseService {
     return data.user;
   }
 
+  async signUp(request: SignUpRequest) {
+    const { data, error } = await this.client.auth.signUp({
+      email: request.email,
+      password: request.password,
+      options: {
+        data: {
+          display_name: request.displayName,
+        },
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
   async signOut(): Promise<void> {
     const { error } = await this.client.auth.signOut();
 
