@@ -44,21 +44,21 @@ export class MemberUpdateComponent implements OnInit {
     }),
 
     power: this.optionalPositiveNumber(),
-    furnace_level: this.optionalPositiveNumber(),
+    furnace_level: this.optionalPositiveNumber(40),
 
-    infantry_fc_level: this.optionalPositiveNumber(),
-    lancer_fc_level: this.optionalPositiveNumber(),
-    marksman_fc_level: this.optionalPositiveNumber(),
+    infantry_fc_level: this.optionalPositiveNumber(10),
+    lancer_fc_level: this.optionalPositiveNumber(10),
+    marksman_fc_level: this.optionalPositiveNumber(10),
 
-    infantry_tier: this.optionalPositiveNumber(),
-    lancer_tier: this.optionalPositiveNumber(),
-    marksman_tier: this.optionalPositiveNumber(),
+    infantry_tier: this.optionalPositiveNumber(11),
+    lancer_tier: this.optionalPositiveNumber(11),
+    marksman_tier: this.optionalPositiveNumber(11),
 
     bear: this.fb.control<number | null>(null),
-    status: this.fb.nonNullable.control(0),
-    rank: this.fb.nonNullable.control(''),
+    status: this.fb.nonNullable.control(1),
+    rank: this.fb.nonNullable.control('R3'),
     notes: this.fb.control<string | null>(''),
-    joined: this.fb.nonNullable.control(''),
+    joined: this.fb.nonNullable.control(new Date().toISOString().slice(0, 10)),
   });
 
   isSaving = false;
@@ -162,19 +162,17 @@ export class MemberUpdateComponent implements OnInit {
     }
   }
 
-  private optionalPositiveNumber() {
-    return this.fb.control<number | null>(null, {
+  private optionalPositiveNumber(p_initialValue: number | null = null) {
+    return this.fb.control<number | null>(p_initialValue, {
       validators: [Validators.min(0)],
     });
   }
 
   async ngOnInit() {
     if (this.mode === 'UPDATE') {
-      console.log('hello', this.route.snapshot.paramMap.get('member'));
       this.memberGet = await this.membersService.getSingle(
         Number(this.route.snapshot.paramMap.get('member')) ?? 0,
       );
-      console.log(this.memberGet);
       this.memberForm.setValue({
         bear: this.memberGet.bear,
         furnace_level: this.memberGet.furnace_level,

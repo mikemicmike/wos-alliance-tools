@@ -6,23 +6,29 @@
   <section class="row g-3 mb-2"
            aria-label="Alliance statistics">
 
-    <div class="col-12 col-sm-3">
+    <div class="col-12 col-sm">
       <article class="card h-100 border-0 shadow-sm">
-        <div class="card-body">
+        <div class="card-body bg-gradient cursor-pointer"
+             [class.bg-success]="selectedSection() === 'ACTIVE'"
+             (click)="selectedSection.set('ACTIVE')">
           <p class="text-body-secondary mb-2">
             Active
           </p>
 
-          <p class="fs-2 fw-bold text-success mb-0">
+          <p class="fs-2 fw-bold mb-0"
+             [class.text-light]="selectedSection() === 'ACTIVE'"
+             [class.text-success]="selectedSection() !== 'ACTIVE'">
             {{ activeMembers() }}
           </p>
         </div>
       </article>
     </div>
 
-    <div class="col-12 col-sm-3">
+    <div class="col-12 col-sm">
       <article class="card h-100 border-0 shadow-sm">
-        <div class="card-body">
+        <div class="card-body bg-gradient cursor-pointer"
+             [class.bg-success]="selectedSection() === 'GONE'"
+             (click)="selectedSection.set('GONE')">
           <p class="text-body-secondary mb-2">
             No Longer Here
           </p>
@@ -33,15 +39,32 @@
         </div>
       </article>
     </div>
-    <div class="col-12 col-sm-3">
+    <div class="col-12 col-sm">
       <article class="card h-100 border-0 shadow-sm">
-        <div class="card-body">
+        <div class="card-body bg-gradient cursor-pointer"
+             [class.bg-success]="selectedSection() === 'TRANSFERRED'"
+             (click)="selectedSection.set('TRANSFERRED')">
           <p class="text-body-secondary mb-2">
             Transferred
           </p>
 
           <p class="fs-2 fw-bold text-warning-emphasis mb-0">
             {{ transferredMembers() }}
+          </p>
+        </div>
+      </article>
+    </div>
+    <div class="col-12 col-sm">
+      <article class="card h-100 border-0 shadow-sm">
+        <div class="card-body bg-gradient cursor-pointer"
+             [class.bg-success]="selectedSection() === 'ALL'"
+             (click)="selectedSection.set('ALL')">
+          <p class="text-body-secondary mb-2">
+            All
+          </p>
+
+          <p class="fs-2 fw-bold text-warning-emphasis mb-0">
+            {{ totalMembers() }}
           </p>
         </div>
       </article>
@@ -91,7 +114,7 @@
               Clear
             </button>
 
-            <a [routerLink]="['/member/update/']"
+            <a [routerLink]="['/member/create']"
                type="button"
                class="btn btn-primary text-nowrap">
               Add Member
@@ -111,7 +134,7 @@
             <th scope="col">Rank</th>
             <th style="min-width: 100px"
                 scope="col">Joined</th>
-            <th scope="col">Power</th>
+            <th scope="col">Power (Mil)</th>
             <th style="min-width: 75px"
                 scope="col">Bear</th>
             <th scope="col">Furnace</th>
@@ -161,9 +184,21 @@
             <td>{{ member.power|number}}</td>
             <td>{{ member.bear_times?.label }}</td>
             <td>{{ member.furnace_level }}</td>
-            <td>T{{ member.infantry_tier }}/FC{{ member.infantry_fc_level }}</td>
-            <td>T{{ member.lancer_tier }}/FC{{ member.lancer_fc_level }}</td>
-            <td>T{{ member.marksman_tier }}/FC{{ member.marksman_fc_level }}</td>
+            <td>
+              @if(member.infantry_tier){T{{ member.infantry_tier }}}
+              @if(member.infantry_tier && member.infantry_fc_level){/}
+              @if(member.infantry_fc_level){FC{{ member.infantry_fc_level }}}
+            </td>
+            <td>
+              @if(member.lancer_tier){T{{ member.lancer_tier }}}
+              @if(member.lancer_tier && member.lancer_fc_level){/}
+              @if(member.lancer_fc_level){FC{{ member.lancer_fc_level }}}
+            </td>
+            <td>
+              @if(member.marksman_tier){T{{ member.marksman_tier }}}
+              @if(member.marksman_tier && member.marksman_fc_level){/}
+              @if(member.marksman_fc_level){FC{{ member.marksman_fc_level }}}
+            </td>
             <td>
               @if(member.canyon_clash_participants[0]){
               <span [class.text-success]="member.canyon_clash_participants[0].showed_up"
@@ -194,7 +229,7 @@
           </tr>
           } @empty {
           <tr>
-            <td colspan="8">
+            <td colspan="13">
               <div class="empty-state text-center">
                 <h2 class="h5">
                   No members found

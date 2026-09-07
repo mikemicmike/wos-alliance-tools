@@ -108,6 +108,9 @@ export class MemberViewComponent implements OnInit {
   update() {
     this.router.navigate(['member/update/', this.memberId]);
   }
+  close() {
+    this.router.navigate(['members']);
+  }
 
   trackByParticipationId(_index: number, item: DParticipation): number {
     return item.id;

@@ -22,12 +22,8 @@ export class MembersComponent {
   error = signal<string | null>(null);
   loading = signal(true);
 
+  selectedSection = signal('ACTIVE');
   readonly members = signal<Awaited<ReturnType<MembersService['list']>>>([]);
-
-  /**
-   * Only one member card is expanded at a time.
-   */
-  readonly expandedMemberId = signal<number | null>(null);
 
   memberClick(memberId: number): void {
     this.router.navigate(['/member/view/', memberId]);
@@ -53,22 +49,25 @@ export class MembersComponent {
 
       const matchesStatus = selectedStatus === 'All' || member.statuses.status === selectedStatus;
 
-      return matchesSearch && matchesStatus;
+      const w_section = this.selectedSection();
+      const matchesSection = w_section === 'ALL' || w_section === this.getMemberStatus(member);
+
+      return matchesSearch && matchesStatus && matchesSection;
     });
   });
 
   readonly totalMembers = computed(() => this.members().length);
 
   readonly activeMembers = computed(
-    () => this.members().filter((member) => member.statuses.is_active).length,
+    () => this.members().filter((member) => this.getMemberStatus(member) === 'ACTIVE').length,
   );
 
   readonly goneMembers = computed(
-    () => this.members().filter((member) => !member.statuses.is_active).length,
+    () => this.members().filter((member) => this.getMemberStatus(member) === 'GONE').length,
   );
 
   readonly transferredMembers = computed(
-    () => this.members().filter((member) => member.statuses.is_transferred_out).length,
+    () => this.members().filter((member) => this.getMemberStatus(member) === 'TRANSFERRED').length,
   );
 
   setSearchTerm(event: Event): void {
@@ -79,6 +78,15 @@ export class MembersComponent {
   setStatusFilter(event: Event): void {
     const select = event.target as HTMLSelectElement;
     this.statusFilter.set(select.value as StatusFilter);
+  }
+
+  getMemberStatus(member: ReturnType<MembersComponent['members']>[number]) {
+    if (member.statuses.is_active) {
+      return 'ACTIVE';
+    } else if (member.statuses.is_transferred_out) {
+      return 'TRANSFERRED';
+    }
+    return 'GONE';
   }
 
   clearFilters(): void {

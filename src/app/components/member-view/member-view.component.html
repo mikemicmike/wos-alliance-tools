@@ -51,6 +51,12 @@
             Update
           </button>
 
+          <button type="button"
+                  class="btn ms-2 btn-secondary"
+                  (click)="close()">
+            close
+          </button>
+
           <div class="fw-semibold">
             Bear {{ member.bear_times?.label || 'Not assigned' }}
           </div>
@@ -75,7 +81,7 @@
               <div class="information-value">
                 {{
                 member.power !== null
-                ? (member.power | number)
+                ? (member.power | number) + ' Mil'
                 : '—'
                 }}
               </div>

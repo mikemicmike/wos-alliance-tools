@@ -132,19 +132,20 @@
                      type="number"
                      class="form-control"
                      formControlName="furnace_level"
-                     min="0"
+                     min="11"
+                     max="40"
                      step="1"
                      [class.is-invalid]="isInvalid('furnace_level')" />
 
               <div class="invalid-feedback">
-                Level cannot be negative.
+                Level must be between 11-40 (FC1=31, FC10=40)
               </div>
             </div>
 
             <div class="col-md-4">
               <label for="power"
                      class="form-label">
-                Power
+                Power (Mil)
               </label>
 
               <input id="power"
@@ -174,10 +175,11 @@
                          class="form-control"
                          formControlName="infantry_fc_level"
                          min="0"
+                         max="10"
                          step="1"
                          [class.is-invalid]="isInvalid('infantry_fc_level')" />
                   <div class="invalid-feedback">
-                    Level cannot be negative.
+                    Level must be between 1-10
                   </div>
                 </td>
                 <td>
@@ -186,11 +188,12 @@
                          class="form-control"
                          formControlName="infantry_tier"
                          min="0"
+                         max="12"
                          step="1"
                          [class.is-invalid]="isInvalid('infantry_tier')" />
 
                   <div class="invalid-feedback">
-                    Tier cannot be negative.
+                    Tier must be between 1-12
                   </div>
                 </td>
               </tr>
@@ -202,10 +205,11 @@
                          class="form-control"
                          formControlName="lancer_fc_level"
                          min="0"
+                         max="10"
                          step="1"
                          [class.is-invalid]="isInvalid('lancer_fc_level')" />
                   <div class="invalid-feedback">
-                    Level cannot be negative.
+                    Level must be between 1-10
                   </div>
                 </td>
                 <td>
@@ -214,11 +218,12 @@
                          class="form-control"
                          formControlName="lancer_tier"
                          min="0"
+                         max="12"
                          step="1"
                          [class.is-invalid]="isInvalid('lancer_tier')" />
 
                   <div class="invalid-feedback">
-                    Tier cannot be negative.
+                    Tier must be between 1-12
                   </div>
                 </td>
               </tr>
@@ -230,10 +235,11 @@
                          class="form-control"
                          formControlName="marksman_fc_level"
                          min="0"
+                         max="10"
                          step="1"
                          [class.is-invalid]="isInvalid('marksman_fc_level')" />
                   <div class="invalid-feedback">
-                    Level cannot be negative.
+                    Level must be between 1-10
                   </div>
                 </td>
                 <td>
@@ -242,11 +248,12 @@
                          class="form-control"
                          formControlName="marksman_tier"
                          min="0"
+                         max="12"
                          step="1"
                          [class.is-invalid]="isInvalid('marksman_tier')" />
 
                   <div class="invalid-feedback">
-                    Tier cannot be negative.
+                    Tier must be between 1-12
                   </div>
                 </td>
               </tr>

@@ -103,7 +103,8 @@ export class MembersService {
           member_log(id, created_at, type, previous_value_num, previous_value_text, new_value_num, new_value_text)
         `,
       )
-      .order('name')
+      .order('rank', { ascending: false })
+      .order('power', { ascending: false })
       .order('date', {
         referencedTable: 'foundry_participants.foundries',
         ascending: false,
