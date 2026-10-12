@@ -5,77 +5,81 @@
 } @else {
 <main class="container-fluid py-3">
   <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-    <h1 class="h3 mb-0 me-auto">Calendar</h1>
-
-    <div class="btn-group"
-         role="group"
-         aria-label="Show">
-      <button type="button"
-              class="btn btn-outline-secondary"
-              [class.active]="scope() === 'all'"
-              [attr.aria-pressed]="scope() === 'all'"
-              (click)="setScope('all')">Everything</button>
-      <button type="button"
-              class="btn btn-outline-secondary"
-              [class.active]="scope() === 'mine'"
-              [attr.aria-pressed]="scope() === 'mine'"
-              (click)="setScope('mine')">My tasks</button>
+    <!-- Colour filter sits beside the title when there's room, else just under it -->
+    <div class="calendar-title d-flex flex-wrap align-items-center column-gap-3 row-gap-1">
+      <h1 class="h3 mb-0">Calendar</h1>
+      @if (usedColors().length > 1) {
+      <div class="d-flex flex-wrap align-items-center gap-1"
+           role="group"
+           aria-label="Show colours">
+        <span class="small text-body-secondary me-1">Colours:</span>
+        @for (option of usedColors(); track option.key) {
+        @let shown = !hiddenColors().has(option.key);
+        <button type="button"
+                class="color-toggle"
+                [class.off]="!shown"
+                [style.background-color]="option.hex"
+                [attr.aria-pressed]="shown"
+                [attr.aria-label]="option.label + ': ' + option.titles.join(', ')"
+                [title]="option.label + (shown ? '' : ' (hidden)') + ': ' + option.titles.join(', ')"
+                (click)="toggleColor(option.key)"></button>
+        }
+        @if (hiddenColors().size) {
+        <button type="button"
+                class="btn btn-link btn-sm py-0"
+                (click)="showAllColors()">Show all</button>
+        }
+      </div>
+      }
     </div>
 
-    <div class="btn-group"
-         role="group"
-         aria-label="View">
-      <button type="button"
-              class="btn btn-outline-secondary"
-              [class.active]="view() === 'calendar'"
-              [attr.aria-pressed]="view() === 'calendar'"
-              (click)="setView('calendar')">Calendar</button>
-      <button type="button"
-              class="btn btn-outline-secondary"
-              [class.active]="view() === 'list'"
-              [attr.aria-pressed]="view() === 'list'"
-              (click)="setView('list')">List</button>
-    </div>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <div class="btn-group"
+           role="group"
+           aria-label="Show">
+        <button type="button"
+                class="btn btn-outline-secondary"
+                [class.active]="scope() === 'all'"
+                [attr.aria-pressed]="scope() === 'all'"
+                (click)="setScope('all')">Everything</button>
+        <button type="button"
+                class="btn btn-outline-secondary"
+                [class.active]="scope() === 'mine'"
+                [attr.aria-pressed]="scope() === 'mine'"
+                (click)="setScope('mine')">My tasks</button>
+      </div>
 
-    <button type="button"
-            class="btn btn-outline-primary"
-            (click)="newEvent(today, false)">
-      + One-off
-    </button>
-    <button type="button"
-            class="btn btn-primary"
-            (click)="newEvent(today, true)">
-      + Repeating event
-    </button>
+      <div class="btn-group"
+           role="group"
+           aria-label="View">
+        <button type="button"
+                class="btn btn-outline-secondary"
+                [class.active]="view() === 'calendar'"
+                [attr.aria-pressed]="view() === 'calendar'"
+                (click)="setView('calendar')">Calendar</button>
+        <button type="button"
+                class="btn btn-outline-secondary"
+                [class.active]="view() === 'list'"
+                [attr.aria-pressed]="view() === 'list'"
+                (click)="setView('list')">List</button>
+      </div>
+
+      <button type="button"
+              class="btn btn-outline-primary"
+              (click)="newEvent(today, false)">
+        + One-off
+      </button>
+      <button type="button"
+              class="btn btn-primary"
+              (click)="newEvent(today, true)">
+        + Repeating event
+      </button>
+    </div>
   </div>
 
   @if (error()) {
   <div class="alert alert-danger">
     {{ error() }}
-  </div>
-  }
-
-  @if (usedColors().length > 1) {
-  <div class="d-flex flex-wrap align-items-center gap-1 mb-3"
-       role="group"
-       aria-label="Show colours">
-    <span class="small text-body-secondary me-1">Colours:</span>
-    @for (option of usedColors(); track option.key) {
-    @let shown = !hiddenColors().has(option.key);
-    <button type="button"
-            class="color-toggle"
-            [class.off]="!shown"
-            [style.background-color]="option.hex"
-            [attr.aria-pressed]="shown"
-            [attr.aria-label]="option.label + ': ' + option.titles.join(', ')"
-            [title]="option.label + (shown ? '' : ' (hidden)') + ': ' + option.titles.join(', ')"
-            (click)="toggleColor(option.key)"></button>
-    }
-    @if (hiddenColors().size) {
-    <button type="button"
-            class="btn btn-link btn-sm py-0"
-            (click)="showAllColors()">Show all</button>
-    }
   </div>
   }
 

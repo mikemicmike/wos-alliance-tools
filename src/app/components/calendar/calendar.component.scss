@@ -249,3 +249,8 @@ $weekend-bg: rgba(var(--bs-secondary-rgb), 0.08);
     );
   }
 }
+
+// Takes the leftover header width; below ~24rem the buttons wrap to their own line instead
+.calendar-title {
+  flex: 1 1 24rem;
+}
