@@ -12,6 +12,7 @@ import { EventManageComponent } from './components/event-manage/event-manage.com
 import { EventListComponent } from './components/event-list/event-list.component';
 import { EventManageMembersComponent } from './components/event-manage-members/event-manage-members.component';
 import { SignupComponent } from './components/signup/signup.component';
+import { MembersBulkEditComponent } from './components/members-bulk-edit/members-bulk-edit.component';
 import { EventKind } from './defs/event-kind';
 
 /** List / day view / registration grid, shared by Foundry and Canyon Clash. */
@@ -47,6 +48,11 @@ export const routes: Routes = [
   {
     path: 'members',
     component: MembersComponent,
+    canActivate: [authGuard, requireApprovedUserProfileGuard],
+  },
+  {
+    path: 'members/bulk-edit',
+    component: MembersBulkEditComponent,
     canActivate: [authGuard, requireApprovedUserProfileGuard],
   },
   {

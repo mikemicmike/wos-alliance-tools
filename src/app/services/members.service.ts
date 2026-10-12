@@ -124,6 +124,37 @@ export class MembersService {
     return data.map(sortHistory);
   }
 
+  /** Active members with just the stats the bulk editor changes. */
+  async listActiveStats() {
+    const { data, error } = await this.supabase
+      .from('members')
+      .select(
+        `
+          id,
+          name,
+          gameId,
+          rank,
+          power,
+          furnace_level,
+          infantry_fc_level,
+          infantry_tier,
+          lancer_fc_level,
+          lancer_tier,
+          marksman_fc_level,
+          marksman_tier,
+          statuses!inner(is_active)
+        `,
+      )
+      .eq('statuses.is_active', true)
+      .order('name');
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return data;
+  }
+
   async create(input: DMemberInsert) {
     const { data, error } = await this.supabase.from('members').insert(input).select().single();
 

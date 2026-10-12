@@ -40,6 +40,18 @@ export class MemberLogService {
     return data;
   }
 
+  async createMany(inputs: DMemberLogInsert[]): Promise<void> {
+    if (!inputs.length) {
+      return;
+    }
+
+    const { error } = await this.supabase.from('member_log').insert(inputs);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
   async create(input: DMemberLogInsert) {
     const { data, error } = await this.supabase.from('member_log').insert(input).select().single();
 

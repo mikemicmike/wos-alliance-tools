@@ -1,0 +1,20 @@
+.bulk-grid {
+  td input {
+    min-width: 70px;
+  }
+
+  td input.power-input {
+    min-width: 110px;
+  }
+
+  // Thick divider in front of each troop type's FC / Tier pair
+  .group-start {
+    border-left: 3px solid var(--bs-gray-500) !important;
+  }
+
+  // Edited but not saved yet
+  input.changed:not(.is-invalid) {
+    background-color: var(--bs-warning-bg-subtle);
+    border-color: var(--bs-warning-border-subtle);
+  }
+}

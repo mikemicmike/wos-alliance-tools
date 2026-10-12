@@ -1,0 +1,140 @@
+@if (loading()) {
+<div class="p-4 text-center">
+  <div class="spinner-border"></div>
+</div>
+} @else {
+<main class="container-fluid py-3">
+
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <button type="button"
+            class="btn btn-outline-secondary btn-sm"
+            (click)="back()">
+      ← Members
+    </button>
+
+    <h1 class="h3 mb-0 me-auto">Bulk edit active members</h1>
+  </div>
+
+  @if (error()) {
+  <div class="alert alert-danger">
+    {{ error() }}
+  </div>
+  }
+
+  @if (success()) {
+  <div class="alert alert-success">
+    {{ success() }}
+  </div>
+  }
+
+  <section class="card border-0 shadow-sm">
+    <div class="card-header bg-body py-3 d-flex flex-wrap align-items-center gap-3">
+      <div class="small text-body-secondary me-auto">
+        Power is in millions as written in game, e.g. <strong>1906</strong> for 1.9B.
+        Tab moves down a column.
+      </div>
+
+      <input type="search"
+             class="form-control w-auto"
+             placeholder="Search name or ID"
+             aria-label="Search members"
+             [value]="search()"
+             (input)="search.set($any($event.target).value)" />
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover table-sm align-middle mb-0 bulk-grid">
+        <thead class="table-light">
+          <tr>
+            <th rowspan="2">ID</th>
+            <th rowspan="2">Member</th>
+            <th rowspan="2">Rank</th>
+            @for (column of columns; track column.key) {
+            @if (!column.group) {
+            <th rowspan="2"
+                class="text-center">{{ column.label }}</th>
+            }
+            }
+            @for (group of groups; track group) {
+            <th colspan="2"
+                class="text-center group-start">{{ group }}</th>
+            }
+          </tr>
+          <tr>
+            @for (column of columns; track column.key) {
+            @if (column.group) {
+            <th class="text-center"
+                [class.group-start]="column.label === 'FC'">{{ column.label }}</th>
+            }
+            }
+          </tr>
+        </thead>
+
+        <tbody (keydown)="gridKeydown($event)">
+          @for (row of visibleRows(); track row.id) {
+          <tr>
+            <td class="text-body-secondary">#{{ row.gameId }}</td>
+            <td class="fw-semibold text-nowrap">{{ row.name }}</td>
+            <td>{{ row.rank }}</td>
+            @for (column of columns; track column.key; let colIndex = $index) {
+            <td [class.group-start]="column.group && column.label === 'FC'">
+              <input type="number"
+                     class="form-control form-control-sm"
+                     [class.changed]="isChanged(row, column.key)"
+                     [class.is-invalid]="isInvalid(row, column)"
+                     [class.power-input]="column.key === 'power'"
+                     min="0"
+                     [attr.max]="column.max"
+                     [attr.step]="column.integer ? 1 : 'any'"
+                     [attr.data-col]="colIndex"
+                     [attr.aria-label]="row.name + ' ' + (column.group ? column.group + ' ' : '') + column.label"
+                     [title]="isChanged(row, column.key) ? 'Was: ' + (row.original[column.key] ?? 'empty') : ''"
+                     [value]="row.values[column.key]"
+                     (change)="valueChanged(row.id, column.key, $event)" />
+            </td>
+            }
+          </tr>
+          } @empty {
+          <tr>
+            <td colspan="11"
+                class="text-center text-body-secondary py-4">
+              No members match your search.
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card-footer bg-body d-flex flex-wrap justify-content-end align-items-center gap-2 py-3">
+      <span class="small me-auto"
+            [class.text-warning-emphasis]="changedRows().length">
+        @if (saving()) {
+        {{ progress() }}
+        } @else if (changedRows().length) {
+        {{ changedRows().length }} member{{ changedRows().length === 1 ? '' : 's' }} changed
+        } @else {
+        No changes
+        }
+      </span>
+
+      <button type="button"
+              class="btn btn-outline-secondary"
+              [disabled]="saving() || !changedRows().length"
+              (click)="discard()">
+        Discard changes
+      </button>
+
+      <button type="button"
+              class="btn btn-primary"
+              [disabled]="saving() || !changedRows().length"
+              (click)="save()">
+        @if (saving()) {
+        <span class="spinner-border spinner-border-sm me-2"></span>
+        }
+        Save changes
+      </button>
+    </div>
+  </section>
+</main>
+}

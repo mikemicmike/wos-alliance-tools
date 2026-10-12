@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { injectEventKind, LEGIONS } from '../../defs/event-kind';
+import { tabDownColumn } from '../../defs/grid-keyboard';
 import { assignLegionSlots, DEvent, EventsService } from '../../services/events.service';
 import { MembersService } from '../../services/members.service';
 
@@ -340,41 +341,8 @@ export class EventManageMembersComponent {
     void this.router.navigate([this.config.path]);
   }
 
-  /**
-   * Tab moves down the current column (e.g. through every L1 "Regular") instead of across the row.
-   * At the end of a column it continues at the top of the next one; past the last column the
-   * browser's normal Tab takes over (on to the Save button).
-   */
-  gridKeydown(event: KeyboardEvent): void {
-    const target = event.target as HTMLElement;
-    if (event.key !== 'Tab' || !target.dataset['col']) {
-      return;
-    }
-
-    const grid = event.currentTarget as HTMLElement;
-    const inputs = (p_col: number) =>
-      [...grid.querySelectorAll<HTMLInputElement>(`input[data-col="${p_col}"]`)].filter(
-        (p_input) => !p_input.disabled,
-      );
-    const step = event.shiftKey ? -1 : 1;
-    const lastCol = 3 * this.slots().length;
-
-    let col = Number(target.dataset['col']);
-    let column = inputs(col);
-    let next = column[column.indexOf(target as HTMLInputElement) + step];
-
-    while (!next) {
-      col += step;
-      if (col < 0 || col > lastCol) {
-        return;
-      }
-      column = inputs(col);
-      next = step > 0 ? column[0] : column[column.length - 1];
-    }
-
-    event.preventDefault();
-    next.focus();
-  }
+  /** Tab moves down a column (e.g. through every L1 "Regular") instead of across the row. */
+  protected readonly gridKeydown = tabDownColumn;
 
   private updateMember(p_memberId: number, p_fn: (p_member: DMemberRow) => DMemberRow): void {
     this.members.update((members) =>
