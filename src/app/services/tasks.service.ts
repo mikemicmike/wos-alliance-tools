@@ -168,6 +168,21 @@ export class TasksService {
     }
   }
 
+  /** Adds several people to a task in one insert. */
+  async addAssignments(
+    p_inputs: { task_id: number; member_id: number; role: TaskRole; notes: string | null }[],
+  ): Promise<void> {
+    if (!p_inputs.length) {
+      return;
+    }
+
+    const { error } = await this.supabase.from('task_assignments').insert(p_inputs);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
   async updateAssignment(p_id: number, p_changes: { role?: TaskRole; notes?: string | null }) {
     const { error } = await this.supabase.from('task_assignments').update(p_changes).eq('id', p_id);
 

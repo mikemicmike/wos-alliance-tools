@@ -162,12 +162,24 @@
 
           <span class="small task-people">
             <span class="text-body-secondary me-1">In charge:</span>
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary add-people"
+                    [attr.aria-label]="'Add people in charge of ' + task.title"
+                    title="Add people in charge"
+                    [disabled]="busy()"
+                    (click)="openPicker(task, 'owner', $event)">+</button>
             @for (person of ownerList; track person.id; let last = $last) {
             <span [class.fw-bold]="person.member_id === filterMemberId()">{{ person.member.name }}</span>@if (!last) {, }
             } @empty {
             <span class="badge text-bg-danger">No one in charge</span>
             }
             <span class="text-body-secondary ms-2 me-1">Backup:</span>
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary add-people"
+                    [attr.aria-label]="'Add backups for ' + task.title"
+                    title="Add backups"
+                    [disabled]="busy()"
+                    (click)="openPicker(task, 'backup', $event)">+</button>
             @for (person of backupList; track person.id; let last = $last) {
             <span [class.fw-bold]="person.member_id === filterMemberId()">{{ person.member.name }}</span>@if (!last) {, }
             } @empty {
@@ -346,4 +358,87 @@
   </form>
   }
 </main>
+
+<!-- "+" popup: tick several people for one role -->
+@if (picker(); as current) {
+<div class="modal-backdrop fade show"></div>
+<div class="modal fade show d-block"
+     tabindex="-1"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="picker-title"
+     (click)="closePicker()">
+  <div class="modal-dialog modal-dialog-scrollable"
+       (click)="$event.stopPropagation()">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5"
+            id="picker-title">
+          {{ current.role === 'owner' ? 'Add people in charge' : 'Add backups' }}
+          <div class="small text-body-secondary fw-normal">{{ current.task.title }}</div>
+        </h2>
+        <button type="button"
+                class="btn-close"
+                aria-label="Close"
+                (click)="closePicker()"></button>
+      </div>
+
+      <div class="modal-body">
+        <input type="search"
+               class="form-control form-control-sm mb-2"
+               placeholder="Search members"
+               aria-label="Search members"
+               [value]="pickerSearch()"
+               (input)="pickerSearch.set($any($event.target).value)" />
+
+        @for (group of pickerGroups(); track group.rank) {
+        <div class="small fw-semibold text-body-secondary mt-2 mb-1">{{ group.rank }}</div>
+        <div class="picker-grid">
+          @for (member of group.members; track member.id) {
+          @let existing = existingRole(member.id);
+          <div class="form-check mb-0">
+            <input type="checkbox"
+                   class="form-check-input"
+                   [id]="'pick-' + member.id"
+                   [disabled]="!!existing"
+                   [checked]="pickerSelected().has(member.id)"
+                   (change)="togglePicked(member.id, $any($event.target).checked)" />
+            <label class="form-check-label"
+                   [class.text-body-tertiary]="existing"
+                   [for]="'pick-' + member.id">
+              {{ member.name }}
+              @if (existing) {
+              <span class="small">({{ existing === 'owner' ? 'in charge' : 'backup' }})</span>
+              }
+            </label>
+          </div>
+          }
+        </div>
+        } @empty {
+        <div class="small text-body-tertiary">No members match.</div>
+        }
+
+        <input class="form-control form-control-sm mt-3"
+               placeholder="Note for everyone added (optional)"
+               aria-label="Note for everyone added"
+               [value]="pickerNote()"
+               (input)="pickerNote.set($any($event.target).value)" />
+      </div>
+
+      <div class="modal-footer">
+        <span class="small text-body-secondary me-auto">{{ pickerSelected().size }} selected</span>
+        <button type="button"
+                class="btn btn-outline-secondary"
+                (click)="closePicker()">Cancel</button>
+        <button type="button"
+                class="btn btn-primary"
+                [disabled]="busy() || !pickerSelected().size"
+                (click)="savePicker()">
+          Add {{ pickerSelected().size || '' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+}
 }

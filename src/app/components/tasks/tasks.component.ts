@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, HostListener, inject, signal } from '@angular/core';
 
 import { MembersService } from '../../services/members.service';
 import { SupabaseService } from '../../services/supabase.service';
@@ -63,6 +63,20 @@ export class TasksComponent {
   readonly newTaskTitles = signal<Record<string, string>>({});
   /** "Add person" form state per task. */
   readonly drafts = signal<Record<number, DAssignmentDraft>>({});
+
+  /** "+" popup for adding several people to one role of a task at once. */
+  readonly picker = signal<{ task: DTask; role: TaskRole } | null>(null);
+  readonly pickerSelected = signal(new Set<number>());
+  readonly pickerSearch = signal('');
+  readonly pickerNote = signal('');
+
+  /** Members grouped by rank for the popup, filtered by its search box. */
+  readonly pickerGroups = computed(() => {
+    const query = this.pickerSearch().trim().toLowerCase();
+    return groupByRank(
+      this.members().filter((m) => !query || m.name.toLowerCase().includes(query)),
+    ).filter((g) => g.members.length);
+  });
 
   readonly linkedMemberId = this.supabaseService.linkedMemberId;
   readonly linkedMemberName = computed(() => this.memberName(this.linkedMemberId()));
@@ -370,6 +384,51 @@ export class TasksComponent {
 
   async removeAssignment(p_assignment: DTaskAssignment): Promise<void> {
     await this.run(() => this.tasksService.removeAssignment(p_assignment.id));
+  }
+
+  openPicker(p_task: DTask, p_role: TaskRole, event: Event): void {
+    event.stopPropagation(); // don't also open/close the row
+    this.picker.set({ task: p_task, role: p_role });
+    this.pickerSelected.set(new Set());
+    this.pickerSearch.set('');
+    this.pickerNote.set('');
+  }
+
+  @HostListener('document:keydown.escape')
+  closePicker(): void {
+    this.picker.set(null);
+  }
+
+  /** Role this member already has on the picker's task, if any. */
+  existingRole(p_memberId: number): TaskRole | null {
+    return this.picker()?.task.assignments.find((a) => a.member_id === p_memberId)?.role ?? null;
+  }
+
+  togglePicked(p_memberId: number, p_checked: boolean): void {
+    this.pickerSelected.update((set) => {
+      const next = new Set(set);
+      p_checked ? next.add(p_memberId) : next.delete(p_memberId);
+      return next;
+    });
+  }
+
+  async savePicker(): Promise<void> {
+    const picker = this.picker();
+    if (!picker || !this.pickerSelected().size) {
+      return;
+    }
+    const notes = this.pickerNote().trim() || null;
+    await this.run(async () => {
+      await this.tasksService.addAssignments(
+        [...this.pickerSelected()].map((member_id) => ({
+          task_id: picker.task.id,
+          member_id,
+          role: picker.role,
+          notes,
+        })),
+      );
+      this.picker.set(null);
+    });
   }
 
   private sortedAssignments(p_task: DTask, p_role: TaskRole): DTaskAssignment[] {
