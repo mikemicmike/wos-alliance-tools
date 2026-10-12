@@ -62,8 +62,9 @@
     </div>
 
     <div class="calendar-weekdays">
-      @for (weekday of weekdays; track weekday) {
-      <div class="calendar-weekday">{{ weekday }}</div>
+      @for (weekday of weekdays; track weekday; let col = $index) {
+      <div class="calendar-weekday"
+           [class.weekend]="col >= 5">{{ weekday }}</div>
       }
     </div>
 
@@ -75,6 +76,7 @@
       @for (cell of week.days; track cell.date; let col = $index) {
       <div class="calendar-day"
            [style.grid-column]="col + 1"
+           [class.weekend]="col >= 5"
            [class.out-of-month]="!cell.inMonth"
            role="button"
            tabindex="0"

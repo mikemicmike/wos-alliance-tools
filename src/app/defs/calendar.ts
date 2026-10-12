@@ -85,14 +85,23 @@ export interface DCheckpointOccurrence {
 
 export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+/** Event colours. All dark enough for the white chip text; keys are stored, so never rename one. */
 export const EVENT_COLORS: { key: string; label: string; hex: string }[] = [
   { key: 'blue', label: 'Blue', hex: '#0d6efd' },
-  { key: 'teal', label: 'Teal', hex: '#0f8a8f' },
-  { key: 'green', label: 'Green', hex: '#198754' },
-  { key: 'orange', label: 'Orange', hex: '#d9730d' },
-  { key: 'red', label: 'Red', hex: '#c0392b' },
+  { key: 'navy', label: 'Navy', hex: '#1f3a93' },
+  { key: 'indigo', label: 'Indigo', hex: '#5a32c9' },
   { key: 'purple', label: 'Purple', hex: '#6f42c1' },
+  { key: 'pink', label: 'Pink', hex: '#c2255c' },
+  { key: 'red', label: 'Red', hex: '#c0392b' },
+  { key: 'maroon', label: 'Maroon', hex: '#7b1e34' },
+  { key: 'orange', label: 'Orange', hex: '#b35900' },
+  { key: 'gold', label: 'Gold', hex: '#946700' },
+  { key: 'brown', label: 'Brown', hex: '#7c4a21' },
+  { key: 'olive', label: 'Olive', hex: '#5f7012' },
+  { key: 'green', label: 'Green', hex: '#198754' },
+  { key: 'teal', label: 'Teal', hex: '#0c7c80' },
   { key: 'gray', label: 'Gray', hex: '#6c757d' },
+  { key: 'black', label: 'Black', hex: '#212529' },
 ];
 
 export function colorHex(p_color: string): string {

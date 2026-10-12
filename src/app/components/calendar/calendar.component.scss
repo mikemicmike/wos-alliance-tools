@@ -26,16 +26,33 @@
 }
 
 // Day background: spans every row of its week, and is what you click to add a one-off
+// Saturday / Sunday columns get a light grey wash
+$weekend-bg: rgba(var(--bs-secondary-rgb), 0.08);
+
+.calendar-weekday.weekend {
+  background-color: $weekend-bg;
+}
+
 .calendar-day {
   grid-row: 1 / -1;
   border-right: 1px solid var(--bs-border-color-translucent);
   cursor: pointer;
 
+  &.weekend {
+    background-color: $weekend-bg;
+  }
+
   &:hover {
     background-color: var(--bs-tertiary-bg);
   }
 
-  &.out-of-month {
+  &.weekend:hover {
+    background-color: rgba(var(--bs-secondary-rgb), 0.14);
+  }
+
+  // Days outside the month stay the darker grey, weekend or not
+  &.out-of-month,
+  &.out-of-month:hover {
     background-color: var(--bs-secondary-bg);
   }
 }
