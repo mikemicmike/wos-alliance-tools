@@ -228,3 +228,24 @@ $weekend-bg: rgba(var(--bs-secondary-rgb), 0.08);
   font-size: 0.65rem;
   border: 1px solid rgba(255, 255, 255, 0.6);
 }
+
+.color-toggle {
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid var(--bs-body-bg);
+  border-radius: 50%;
+  padding: 0;
+  box-shadow: 0 0 0 1px var(--bs-border-color);
+
+  &.off {
+    opacity: 0.25;
+    // Diagonal strike so "off" isn't shown by fading alone
+    background-image: linear-gradient(
+      to top right,
+      transparent calc(50% - 1px),
+      var(--bs-body-color) calc(50% - 1px),
+      var(--bs-body-color) calc(50% + 1px),
+      transparent calc(50% + 1px)
+    );
+  }
+}

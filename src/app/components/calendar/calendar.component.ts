@@ -1,4 +1,5 @@
 import { Component, computed, HostListener, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 import {
   addDays,
@@ -13,6 +14,7 @@ import {
   describeTimes,
   DOccurrence,
   DWeekBar,
+  EVENT_COLORS,
   layoutWeekBars,
   matchRecords,
   describeShift,
@@ -31,6 +33,7 @@ import { DEvent, eventPlacement, EventsService } from '../../services/events.ser
 import { CalendarOccurrencePanelComponent } from '../calendar-occurrence-panel/calendar-occurrence-panel.component';
 import { CalendarService } from '../../services/calendar.service';
 import { DTask, TasksService } from '../../services/tasks.service';
+import { SupabaseService } from '../../services/supabase.service';
 import {
   CalendarEventEditorComponent,
   DEditorTarget,
@@ -58,10 +61,19 @@ interface DWeek {
 }
 
 const VIEW_KEY = 'calendar.view';
+const SCOPE_KEY = 'calendar.scope';
+const HIDDEN_COLORS_KEY = 'calendar.hiddenColors';
+
+type Scope = 'all' | 'mine';
 
 @Component({
   selector: 'app-calendar',
-  imports: [CalendarEventEditorComponent, CalendarOccurrencePanelComponent, LocalTimePipe],
+  imports: [
+    CalendarEventEditorComponent,
+    CalendarOccurrencePanelComponent,
+    LocalTimePipe,
+    RouterLink,
+  ],
   templateUrl: './calendar.component.html',
   styleUrl: './calendar.component.scss',
 })
@@ -69,6 +81,7 @@ export class CalendarComponent {
   private readonly calendarService = inject(CalendarService);
   private readonly tasksService = inject(TasksService);
   private readonly eventsService = inject(EventsService);
+  private readonly supabaseService = inject(SupabaseService);
 
   readonly weekdays = WEEKDAYS;
   readonly colorHex = colorHex;
@@ -82,6 +95,11 @@ export class CalendarComponent {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly view = signal<'calendar' | 'list'>(this.storedView());
+  /** Everything, or only the checkpoints you're in charge of / backup for (and their events). */
+  readonly scope = signal<Scope>(this.stored(SCOPE_KEY) === 'mine' ? 'mine' : 'all');
+  readonly linkedMemberId = this.supabaseService.linkedMemberId;
+  /** Colours switched off in the filter. */
+  readonly hiddenColors = signal<ReadonlySet<string>>(this.storedHiddenColors());
   /** First day of the month shown. */
   readonly month = signal(this.today.slice(0, 8) + '01');
   readonly showEnded = signal(false);
@@ -100,6 +118,52 @@ export class CalendarComponent {
 
   readonly tasksById = computed(() => new Map(this.tasks().map((t) => [t.id, t])));
 
+  /** Tasks the linked member owns or backs up; null = no filter. */
+  private readonly myTaskIds = computed(() => {
+    const memberId = this.linkedMemberId();
+    if (this.scope() === 'all' || memberId === null) {
+      return null;
+    }
+    return new Set(
+      this.tasks()
+        .filter((t) => t.assignments.some((a) => a.member_id === memberId))
+        .map((t) => t.id),
+    );
+  });
+
+  /** Colours in use, in palette order, with the events using each (for the filter). */
+  readonly usedColors = computed(() =>
+    EVENT_COLORS.map((p_color) => ({
+      ...p_color,
+      titles: this.events()
+        .filter((e) => colorHex(e.color) === p_color.hex)
+        .map((e) => e.title),
+    })).filter((c) => c.titles.length),
+  );
+
+  /** Events shown (colour filter + my tasks), or null when nothing is filtered. */
+  private readonly visibleEventIds = computed(() => {
+    const mine = this.myTaskIds();
+    const hidden = this.hiddenColors();
+    if (mine === null && !hidden.size) {
+      return null;
+    }
+    return new Set(
+      this.events()
+        .filter(
+          (e) =>
+            !hidden.has(e.color) &&
+            (mine === null || e.checkpoints.some((c) => c.task_id !== null && mine.has(c.task_id))),
+        )
+        .map((e) => e.id),
+    );
+  });
+
+  isMyCheckpoint(p_taskId: number | null): boolean {
+    const mine = this.myTaskIds();
+    return mine === null || (p_taskId !== null && mine.has(p_taskId));
+  }
+
   readonly monthLabel = computed(() =>
     new Date(this.month() + 'T00:00:00Z').toLocaleDateString(undefined, {
       month: 'long',
@@ -117,8 +181,14 @@ export class CalendarComponent {
     const lastOfMonth = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
     const last = addDays(startOfWeek(lastOfMonth), 6);
 
-    const occurrences = occurrencesInRange(this.events(), first, last);
-    const checkpoints = checkpointsInRange(this.events(), first, last);
+    // Worked out on the full calendar (shifts / overlaps depend on other events), then filtered
+    const shown = this.visibleEventIds();
+    const occurrences = occurrencesInRange(this.events(), first, last).filter(
+      (o) => shown === null || shown.has(o.event.id),
+    );
+    const checkpoints = checkpointsInRange(this.events(), first, last).filter(
+      (c) => (shown === null || shown.has(c.event.id)) && this.isMyCheckpoint(c.checkpoint.task_id),
+    );
 
     const weeks: DWeek[] = [];
     for (let date = first; date <= last; date = addDays(date, 7)) {
@@ -146,6 +216,7 @@ export class CalendarComponent {
   /** List view: soonest first, ended one-offs/series hidden unless asked for. */
   readonly listRows = computed(() =>
     this.events()
+      .filter((e) => this.visibleEventIds()?.has(e.id) ?? true)
       .map((p_event) => {
         const next = nextOccurrenceStart(p_event, this.today);
         return {
@@ -171,6 +242,36 @@ export class CalendarComponent {
     this.view.set(p_view);
     try {
       localStorage.setItem(VIEW_KEY, p_view);
+    } catch {
+      // storage unavailable - just don't remember it
+    }
+  }
+
+  setScope(p_scope: Scope): void {
+    this.scope.set(p_scope);
+    try {
+      localStorage.setItem(SCOPE_KEY, p_scope);
+    } catch {
+      // storage unavailable - just don't remember it
+    }
+  }
+
+  toggleColor(p_key: string): void {
+    const hidden = new Set(this.hiddenColors());
+    if (!hidden.delete(p_key)) {
+      hidden.add(p_key);
+    }
+    this.setHiddenColors(hidden);
+  }
+
+  showAllColors(): void {
+    this.setHiddenColors(new Set());
+  }
+
+  private setHiddenColors(p_hidden: ReadonlySet<string>): void {
+    this.hiddenColors.set(p_hidden);
+    try {
+      localStorage.setItem(HIDDEN_COLORS_KEY, JSON.stringify([...p_hidden]));
     } catch {
       // storage unavailable - just don't remember it
     }
@@ -379,10 +480,23 @@ export class CalendarComponent {
   }
 
   private storedView(): 'calendar' | 'list' {
+    return this.stored(VIEW_KEY) === 'list' ? 'list' : 'calendar';
+  }
+
+  private storedHiddenColors(): ReadonlySet<string> {
     try {
-      return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'calendar';
+      const keys: unknown = JSON.parse(this.stored(HIDDEN_COLORS_KEY) ?? '[]');
+      return new Set(Array.isArray(keys) ? keys.filter((k) => typeof k === 'string') : []);
     } catch {
-      return 'calendar';
+      return new Set();
+    }
+  }
+
+  private stored(p_key: string): string | null {
+    try {
+      return localStorage.getItem(p_key);
+    } catch {
+      return null;
     }
   }
 }
