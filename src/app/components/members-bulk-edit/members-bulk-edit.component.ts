@@ -101,19 +101,27 @@ export class MembersBulkEditComponent {
     try {
       const members = await this.membersService.listActiveStats();
       this.rows.set(
-        members.map((p_member) => {
-          const stats = Object.fromEntries(
-            STAT_COLUMNS.map((c) => [c.key, p_member[c.key]]),
-          ) as DStats;
-          return {
-            id: p_member.id,
-            name: p_member.name,
-            gameId: p_member.gameId,
-            rank: p_member.rank,
-            original: stats,
-            values: { ...stats },
-          };
-        }),
+        members
+          .map((p_member) => {
+            const stats = Object.fromEntries(
+              STAT_COLUMNS.map((c) => [c.key, p_member[c.key]]),
+            ) as DStats;
+            return {
+              id: p_member.id,
+              name: p_member.name,
+              gameId: p_member.gameId,
+              rank: p_member.rank,
+              original: stats,
+              values: { ...stats },
+            };
+          })
+          // Highest saved power first (no power last). Uses the saved value so rows don't
+          // jump around while typing; the order refreshes after saving.
+          .sort(
+            (a, b) =>
+              (b.original.power ?? -Infinity) - (a.original.power ?? -Infinity) ||
+              a.name.localeCompare(b.name),
+          ),
       );
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'Unable to load members.');
