@@ -7,6 +7,19 @@
   <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
     <h1 class="h3 mb-0 me-auto">Tasks</h1>
 
+    @if (!filtering()) {
+    <div class="btn-group btn-group-sm"
+         role="group"
+         aria-label="Categories">
+      <button type="button"
+              class="btn btn-outline-secondary"
+              (click)="collapseAll(true)">Collapse all</button>
+      <button type="button"
+              class="btn btn-outline-secondary"
+              (click)="collapseAll(false)">Expand all</button>
+    </div>
+    }
+
     <input type="search"
            class="form-control w-auto"
            placeholder="Search tasks or people"
@@ -98,8 +111,19 @@
 
   <!-- One card per category, tasks listed in order -->
   @for (section of sections(); track section.key; let sectionIndex = $index) {
+  @let sectionCollapsed = isCollapsed(section);
+  @let missing = needPeople(section);
   <section class="card border-0 shadow-sm mb-3">
-    <div class="card-header bg-body d-flex align-items-center gap-2">
+    <div class="card-header bg-body d-flex align-items-center gap-2"
+         [class.border-bottom-0]="sectionCollapsed">
+      @if (!filtering()) {
+      <button type="button"
+              class="btn btn-sm btn-link text-body-secondary text-decoration-none chevron"
+              [attr.aria-expanded]="!sectionCollapsed"
+              [attr.aria-controls]="'section-' + section.key"
+              [attr.aria-label]="(sectionCollapsed ? 'Expand ' : 'Collapse ') + (section.category?.name ?? 'Uncategorized')"
+              (click)="toggleSection(section)">{{ sectionCollapsed ? '▸' : '▾' }}</button>
+      }
       @if (section.category; as category) {
       @if (!filtering()) {
       <div class="btn-group btn-group-sm">
@@ -120,6 +144,9 @@
              [value]="category.name"
              (change)="renameCategory(category, $event)" />
       <span class="badge text-bg-light border">{{ section.allTasks.length }}</span>
+      @if (sectionCollapsed && missing) {
+      <span class="badge text-bg-warning">{{ missing }} {{ missing === 1 ? 'needs' : 'need' }} people</span>
+      }
       <button type="button"
               class="btn btn-sm btn-outline-danger ms-auto"
               [disabled]="busy()"
@@ -127,10 +154,15 @@
       } @else {
       <h2 class="h6 mb-0 text-body-secondary">Uncategorized</h2>
       <span class="badge text-bg-light border">{{ section.allTasks.length }}</span>
+      @if (sectionCollapsed && missing) {
+      <span class="badge text-bg-warning">{{ missing }} {{ missing === 1 ? 'needs' : 'need' }} people</span>
+      }
       }
     </div>
 
-    <ul class="list-group list-group-flush">
+    @if (!sectionCollapsed) {
+    <ul class="list-group list-group-flush"
+        [id]="'section-' + section.key">
       @if (section.tasks.length) {
       <li class="list-group-item task-grid task-grid-header d-none d-md-grid"
           aria-hidden="true">
@@ -349,6 +381,7 @@
       </li>
       }
     </ul>
+    }
   </section>
   } @empty {
   <div class="text-center text-body-secondary py-4">

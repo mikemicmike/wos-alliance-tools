@@ -18,6 +18,8 @@ interface DAssignmentDraft {
 
 const EMPTY_DRAFT: DAssignmentDraft = { memberId: null, role: 'owner', notes: '' };
 
+const COLLAPSED_KEY = 'tasks.collapsedCategories';
+
 /** 'all', 'me' (the member linked to this login) or a member id. */
 type PersonFilter = 'all' | 'me' | number;
 
@@ -57,6 +59,8 @@ export class TasksComponent {
   readonly linking = signal(false);
   /** Task rows opened for editing. */
   readonly expanded = signal(new Set<number>());
+  /** Collapsed category sections (by section key), remembered in this browser. */
+  readonly collapsed = signal<ReadonlySet<string>>(storedCollapsed());
 
   readonly newCategoryName = signal('');
   /** "Add a task" input per section. */
@@ -235,6 +239,38 @@ export class TasksComponent {
   async moveCategory(p_index: number, p_delta: -1 | 1): Promise<void> {
     const ids = this.categories().map((c) => c.id);
     await this.run(() => this.tasksService.reorderCategories(swap(ids, p_index, p_delta)));
+  }
+
+  /** Searching / filtering by person always shows every match. */
+  isCollapsed(p_section: DSection): boolean {
+    return !this.filtering() && this.collapsed().has(p_section.key);
+  }
+
+  toggleSection(p_section: DSection): void {
+    const next = new Set(this.collapsed());
+    if (!next.delete(p_section.key)) {
+      next.add(p_section.key);
+    }
+    this.setCollapsed(next);
+  }
+
+  collapseAll(p_collapse: boolean): void {
+    this.setCollapsed(new Set(p_collapse ? this.sections().map((s) => s.key) : []));
+  }
+
+  /** Tasks with nobody in charge or no backup - shown on collapsed headers. */
+  needPeople(p_section: DSection): number {
+    return p_section.allTasks.filter((t) => !this.owners(t).length || !this.backups(t).length)
+      .length;
+  }
+
+  private setCollapsed(p_keys: ReadonlySet<string>): void {
+    this.collapsed.set(p_keys);
+    try {
+      localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...p_keys]));
+    } catch {
+      // storage unavailable - just don't remember it
+    }
   }
 
   // --- Tasks -----------------------------------------------------------------------------------
@@ -495,4 +531,13 @@ function swap(p_ids: number[], p_index: number, p_delta: -1 | 1): number[] {
   }
   [ids[p_index], ids[other]] = [ids[other], ids[p_index]];
   return ids;
+}
+
+function storedCollapsed(): ReadonlySet<string> {
+  try {
+    const keys: unknown = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]');
+    return new Set(Array.isArray(keys) ? keys.filter((k) => typeof k === 'string') : []);
+  } catch {
+    return new Set();
+  }
 }
