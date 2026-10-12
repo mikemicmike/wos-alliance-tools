@@ -11,6 +11,7 @@ import {
 
 import {
   addDays,
+  CalendarEventKind,
   checkpointDayLabel,
   colorHex,
   daysBetween,
@@ -18,6 +19,7 @@ import {
   describeRecurrence,
   EVENT_COLORS,
 } from '../../defs/calendar';
+import { LocalTimePipe } from '../../defs/local-time';
 import { CalendarService, DCheckpointInput } from '../../services/calendar.service';
 import { DTask } from '../../services/tasks.service';
 
@@ -44,6 +46,7 @@ let nextKey = 1;
 
 @Component({
   selector: 'app-calendar-event-editor',
+  imports: [LocalTimePipe],
   templateUrl: './calendar-event-editor.component.html',
   styleUrl: './calendar-event-editor.component.scss',
 })
@@ -67,6 +70,8 @@ export class CalendarEventEditorComponent implements OnInit {
   readonly title = signal('');
   readonly notes = signal('');
   readonly color = signal('blue');
+  readonly kind = signal<CalendarEventKind>('event');
+  readonly trackResults = signal(false);
   /** Most events only need a date (and maybe a time); the end is opt-in. */
   readonly showEnd = signal(false);
   readonly startDate = signal('');
@@ -128,7 +133,11 @@ export class CalendarEventEditorComponent implements OnInit {
     }
     const span = Math.max(6, daysBetween(start, this.endDate() || start));
     const offsets = Array.from({ length: span + 8 }, (_, i) => i - 7);
-    return offsets.map((offset) => ({ offset, label: checkpointDayLabel(start, offset) }));
+    // The real date of the first occurrence makes "Thursday before" vs "after" obvious
+    return offsets.map((offset) => ({
+      offset,
+      label: `${checkpointDayLabel(start, offset)} (${addDays(start, offset)})`,
+    }));
   });
 
   ngOnInit(): void {
@@ -143,6 +152,8 @@ export class CalendarEventEditorComponent implements OnInit {
     this.title.set(event.title);
     this.notes.set(event.notes ?? '');
     this.color.set(event.color);
+    this.kind.set(event.kind ?? 'event');
+    this.trackResults.set(!!event.track_results);
     this.showEnd.set(event.end_date !== event.start_date || !!event.end_time);
     this.startDate.set(event.start_date);
     this.startTime.set(event.start_time?.slice(0, 5) ?? '');
@@ -267,6 +278,9 @@ export class CalendarEventEditorComponent implements OnInit {
           title: this.title().trim(),
           notes: this.notes().trim() || null,
           color: this.color(),
+          kind: this.kind(),
+          // Foundry / CC results live on their own pages
+          track_results: this.kind() === 'event' && this.trackResults(),
           start_date: this.startDate(),
           start_time: allDay ? null : this.startTime(),
           end_date: this.showEnd() ? this.endDate() : this.startDate(),

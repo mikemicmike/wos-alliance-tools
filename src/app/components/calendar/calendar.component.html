@@ -56,88 +56,120 @@
               (click)="goToToday()">Today</button>
       <h2 class="h5 mb-0 ms-2">{{ monthLabel() }}</h2>
       <span class="small text-body-secondary ms-auto d-none d-md-inline">
-        Times in UTC · click a day to add a one-off · hover a ◆ checkpoint to see who's on it ·
+        Times in UTC (your time in brackets) · click a day to add a one-off · hover a ◆ checkpoint to see who's on it ·
         ⇠ moved earlier · ⚠ overlaps
       </span>
     </div>
 
-    <div class="calendar-grid">
+    <div class="calendar-weekdays">
       @for (weekday of weekdays; track weekday) {
       <div class="calendar-weekday">{{ weekday }}</div>
       }
+    </div>
 
-      @for (week of weeks(); track week[0].date) {
-      @for (cell of week; track cell.date) {
+    @for (week of weeks(); track week.days[0].date) {
+    <!-- One grid per week: dates on row 1, a row per multi-day bar lane, then each day's items.
+         The day backgrounds span every row and handle "click a day to add a one-off". -->
+    <div class="calendar-week"
+         [style.grid-template-rows]="weekRows(week)">
+      @for (cell of week.days; track cell.date; let col = $index) {
       <div class="calendar-day"
+           [style.grid-column]="col + 1"
            [class.out-of-month]="!cell.inMonth"
-           [class.today]="cell.isToday"
            role="button"
            tabindex="0"
            [attr.aria-label]="'Add a one-off on ' + cell.date"
            (click)="newEvent(cell.date, false)"
-           (keydown.enter)="newEvent(cell.date, false)">
-        <div class="calendar-date">{{ cell.day }}</div>
-
-        @for (occurrence of cell.occurrences; track occurrence.event.id + occurrence.start) {
+           (keydown.enter)="newEvent(cell.date, false)"></div>
+      <div class="calendar-date"
+           [style.grid-column]="col + 1"
+           [class.out-of-month]="!cell.inMonth"
+           [class.today]="cell.isToday">
+        <span>{{ cell.day }}</span>
+      </div>
+      <div class="day-content"
+           [style.grid-column]="col + 1"
+           [style.grid-row]="week.lanes + 2">
+        @for (occurrence of cell.occurrences; track occurrence.event.id + ':' + occurrence.start) {
         <button type="button"
                 class="event-chip"
                 [class.skipped]="occurrence.skipped"
-                [class.continues]="occurrence.start !== cell.date"
                 [style.background-color]="colorHex(occurrence.event.color)"
                 [class.overlapping]="occurrence.overlapsWith.length > 0"
                 [title]="chipTitle(occurrence)"
-                (click)="openEvent(occurrence.event, occurrence.start, $event)">
+                (click)="openOccurrence(occurrence, $event)">
           @if (occurrence.overlapsWith.length) {
           <span class="chip-flag"
                 aria-hidden="true">⚠</span>
           }
-          @if (occurrence.start === cell.date && occurrence.startTime) {
+          @if (occurrence.startTime) {
           @if (occurrence.shiftedFor.length) {
           <span class="chip-flag"
                 aria-hidden="true">⇠</span>
           }
           <span class="chip-time">{{ occurrence.startTime }}</span>
+          @if (occurrence.start | localTime: occurrence.startTime; as local) {
+          <span class="chip-local">({{ local }})</span>
           }
-          @if (isStartOrWeekStart(occurrence, cell.date)) {
+          }
           {{ occurrence.event.title }}
-          } @else {
-          <span aria-hidden="true">…</span><span class="visually-hidden">{{ occurrence.event.title }} continues</span>
+          @if (resultBadge(occurrence); as badge) {
+          <span class="badge result-badge text-bg-{{ badge.tone }}">{{ badge.text }}</span>
           }
         </button>
         }
 
-        @for (point of cell.checkpoints; track point.checkpoint.id + point.date) {
-        @let task = taskFor(point);
+        @for (group of cell.checkpoints; track group.key) {
+        @let task = groupTask(group);
         <div class="checkpoint-chip"
-             [class.skipped]="point.skipped"
+             [class.skipped]="group.skipped"
              [class.hover-left]="cell.rightEdge"
              role="button"
              tabindex="0"
-             (click)="openEvent(point.event, point.occurrenceStart, $event)"
-             (keydown.enter)="openEvent(point.event, point.occurrenceStart, $event)">
+             (click)="openCheckpoint(group, $event)"
+             (keydown.enter)="openCheckpoint(group, $event)">
+          @for (color of groupColors(group); track color) {
           <span class="checkpoint-mark"
-                [style.color]="colorHex(point.event.color)">◆</span>
-          @if (point.checkpoint.time) {
-          <span class="chip-time">{{ shortTime(point.checkpoint.time) }}</span>
+                [style.color]="color">◆</span>
           }
-          {{ point.checkpoint.title }}
+          @if (group.time) {
+          <span class="chip-time">{{ shortTime(group.time) }}</span>
+          @if (group.date | localTime: group.time; as local) {
+          <span class="chip-local">({{ local }})</span>
+          }
+          }
+          {{ group.title }}
+          @if (group.points.length > 1) {
+          <span class="badge rounded-pill text-bg-light border"
+                [title]="'For ' + group.points.length + ' events'">×{{ group.points.length }}</span>
+          }
           @if (task && !owners(task).length) {
           <span class="text-danger fw-bold"
                 title="Nobody is in charge of the linked task">!</span>
           }
 
-          <!-- Hover card: who's needed -->
+          <!-- Hover card: which events, and who's needed -->
           <div class="hover-card"
                role="tooltip">
-            <div class="fw-semibold">{{ point.checkpoint.title }}</div>
+            <div class="fw-semibold">{{ group.title }}</div>
             <div class="small text-body-secondary mb-1">
-              {{ point.event.title }} · {{ point.date }}
-              @if (point.checkpoint.time) { · {{ shortTime(point.checkpoint.time) }} UTC }
-              @if (point.skipped) { · <strong>skipped</strong> }
+              {{ group.date }}
+              @if (group.time) {
+              · {{ shortTime(group.time) }} UTC
+              @if (group.date | localTime: group.time; as local) { ({{ local }} your time) }
+              }
             </div>
-            @if (point.checkpoint.notes) {
-            <div class="small mb-1">{{ point.checkpoint.notes }}</div>
-            }
+            <div class="small mb-1">
+              <span class="text-body-secondary">{{ group.points.length > 1 ? 'For events:' : 'Event:' }}</span>
+              @for (point of group.points; track point.event.id + ':' + point.checkpoint.id) {
+              <div class="ms-2">
+                <span [style.color]="colorHex(point.event.color)">◆</span>
+                {{ point.event.title }}
+                @if (point.skipped) { <strong>(skipped)</strong> }
+                @if (point.checkpoint.notes) {<span class="text-body-secondary ms-1">– {{ point.checkpoint.notes }}</span>}
+              </div>
+              }
+            </div>
             @if (task) {
             <div class="small fw-semibold mt-1">Task: {{ task.title }}</div>
             <div class="small">
@@ -162,8 +194,39 @@
         }
       </div>
       }
+
+      <!-- Multi-day events: one bar per week they touch -->
+      @for (bar of week.bars; track bar.occurrence.event.id + ':' + bar.occurrence.start) {
+      <button type="button"
+              class="event-chip event-bar"
+              [class.continues-before]="bar.continuesBefore"
+              [class.continues-after]="bar.continuesAfter"
+              [class.skipped]="bar.occurrence.skipped"
+              [style.grid-column]="bar.colStart + ' / ' + bar.colEnd"
+              [style.grid-row]="bar.lane + 2"
+              [style.background-color]="colorHex(bar.occurrence.event.color)"
+              [title]="chipTitle(bar.occurrence)"
+              (click)="openOccurrence(bar.occurrence, $event)">
+        @if (bar.continuesBefore) {
+        <span aria-hidden="true">◂</span>
+        } @else if (bar.occurrence.startTime) {
+        <span class="chip-time">{{ bar.occurrence.startTime }}</span>
+        @if (bar.occurrence.start | localTime: bar.occurrence.startTime; as local) {
+        <span class="chip-local">({{ local }})</span>
+        }
+        }
+        {{ bar.occurrence.event.title }}
+        @if (resultBadge(bar.occurrence); as badge) {
+        <span class="badge result-badge text-bg-{{ badge.tone }}">{{ badge.text }}</span>
+        }
+        @if (bar.continuesAfter) {
+        <span class="bar-more"
+              aria-hidden="true">▸</span>
+        }
+      </button>
       }
     </div>
+    }
   </section>
   } @else {
   <!-- List view -->
@@ -207,6 +270,9 @@
             <td class="text-nowrap">{{ describeRecurrence(row.event) }}</td>
             <td class="text-nowrap">
               {{ describeTimes(row.event) }}
+              @if (localWhen(row.event, row.next); as local) {
+              <div class="small text-body-secondary">({{ local }} your time)</div>
+              }
               @if (row.shift) {
               <div class="small text-body-secondary">⇠ {{ row.shift }}</div>
               }
@@ -253,6 +319,53 @@
   </section>
   }
 </main>
+
+@if (chooser(); as group) {
+<div class="modal-backdrop fade show"></div>
+<div class="modal fade show d-block"
+     tabindex="-1"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="chooser-title"
+     (click)="chooser.set(null)">
+  <div class="modal-dialog modal-sm modal-dialog-centered"
+       (click)="$event.stopPropagation()">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h2 class="modal-title h6"
+            id="chooser-title">
+          {{ group.title }}
+          <div class="small text-body-secondary fw-normal">{{ group.date }} · open which event?</div>
+        </h2>
+        <button type="button"
+                class="btn-close"
+                aria-label="Close"
+                (click)="chooser.set(null)"></button>
+      </div>
+      <div class="list-group list-group-flush">
+        @for (point of group.points; track point.event.id + ':' + point.checkpoint.id) {
+        <button type="button"
+                class="list-group-item list-group-item-action"
+                (click)="chooseEvent(point)">
+          <span [style.color]="colorHex(point.event.color)">◆</span>
+          {{ point.event.title }}
+          <span class="small text-body-secondary">· {{ point.occurrenceStart }}</span>
+        </button>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+}
+
+@if (panel(); as occurrence) {
+<app-calendar-occurrence-panel [occurrence]="occurrence"
+                               [foundries]="foundries()"
+                               [canyonClashes]="canyonClashes()"
+                               [results]="results()"
+                               (closed)="panelClosed($event)"
+                               (edit)="editFromPanel()" />
+}
 
 @if (editor(); as target) {
 <app-calendar-event-editor [target]="target"

@@ -3,6 +3,7 @@ import { Component, computed, DestroyRef, HostListener, inject, signal } from '@
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 
+import { LocalTimePipe } from '../../defs/local-time';
 import { injectEventKind, LEGIONS } from '../../defs/event-kind';
 import { tabDownColumn } from '../../defs/grid-keyboard';
 import { HasUnsavedChanges, warnBeforeUnload } from '../../guards/unsaved-changes.guard';
@@ -43,7 +44,7 @@ interface DMemberRow {
 
 @Component({
   selector: 'app-event-manage-members',
-  imports: [DecimalPipe],
+  imports: [DecimalPipe, LocalTimePipe],
   templateUrl: './event-manage-members.component.html',
   styleUrl: './event-manage-members.component.scss',
 })

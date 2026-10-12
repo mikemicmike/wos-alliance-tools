@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { SupabaseClient } from '@supabase/supabase-js';
 
-import { DCalendarCheckpoint, DCalendarEvent } from '../defs/calendar';
+import { DCalendarCheckpoint, DCalendarEvent, DCalendarResult } from '../defs/calendar';
 import { SupabaseService } from './supabase.service';
 
 export type DCalendarEventInput = Omit<DCalendarEvent, 'id' | 'checkpoints' | 'skips'> & {
@@ -58,6 +58,42 @@ export class CalendarService {
   }
 
   /** Checkpoints and skips go with it (`on delete cascade`). */
+  async listResults(): Promise<DCalendarResult[]> {
+    const { data, error } = await this.supabase
+      .from('calendar_event_results')
+      .select('event_id, occurrence_date, our_score, opponent, opponent_score, outcome, notes')
+      .order('occurrence_date', { ascending: false });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return data as DCalendarResult[];
+  }
+
+  /** One result per event date: saving again replaces it. */
+  async saveResult(p_result: DCalendarResult): Promise<void> {
+    const { error } = await this.supabase
+      .from('calendar_event_results')
+      .upsert(p_result, { onConflict: 'event_id,occurrence_date' });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  async removeResult(p_eventId: number, p_date: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('calendar_event_results')
+      .delete()
+      .eq('event_id', p_eventId)
+      .eq('occurrence_date', p_date);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
   async remove(p_id: number): Promise<void> {
     const { error } = await this.supabase.from('calendar_events').delete().eq('id', p_id);
 

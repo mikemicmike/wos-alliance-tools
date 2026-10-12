@@ -1,41 +1,46 @@
 import { Routes } from '@angular/router';
 import { MembersComponent } from './components/members/members.component';
-import { AlliancesComponent } from './components/alliances/alliances.component';
-import { MemberUpdateComponent } from './components/member-update/member-update.component';
-import { MemberViewComponent } from './components/member-view/member-view.component';
 import { LoginComponent } from './components/login/login.component';
 import { authGuard } from './guards/auth.guard';
 import { requireApprovedUserProfileGuard } from './guards/require-approved-user-profile.guard';
-import { MissingProfileComponent } from './components/missing-profile/missing-profile.component';
 import { requireNotApprovedUserProfileGuard } from './guards/require-not-approved-user-profile.guard';
-import { EventManageComponent } from './components/event-manage/event-manage.component';
-import { EventListComponent } from './components/event-list/event-list.component';
-import { EventManageMembersComponent } from './components/event-manage-members/event-manage-members.component';
-import { SignupComponent } from './components/signup/signup.component';
-import { MembersBulkEditComponent } from './components/members-bulk-edit/members-bulk-edit.component';
-import { UsersComponent } from './components/users/users.component';
-import { TasksComponent } from './components/tasks/tasks.component';
-import { CalendarComponent } from './components/calendar/calendar.component';
 import { EventKind } from './defs/event-kind';
 import { requireAdminGuard } from './guards/require-admin.guard';
 import { unsavedChangesGuard } from './guards/unsaved-changes.guard';
+
+/*
+ * Login and the members list (the landing page) are in the main bundle; every other page is
+ * lazy-loaded so its code is only downloaded when someone opens it.
+ */
 
 /** List / day view / registration grid, shared by Foundry and Canyon Clash. */
 function eventRoutes(p_path: string, p_kind: EventKind): Routes {
   const canActivate = [authGuard, requireApprovedUserProfileGuard];
   const data = { kind: p_kind };
   return [
-    { path: p_path, component: EventListComponent, canActivate, data },
+    {
+      path: p_path,
+      loadComponent: () =>
+        import('./components/event-list/event-list.component').then((m) => m.EventListComponent),
+      canActivate,
+      data,
+    },
     {
       path: `${p_path}/manage/:date`,
-      component: EventManageComponent,
+      loadComponent: () =>
+        import('./components/event-manage/event-manage.component').then(
+          (m) => m.EventManageComponent,
+        ),
       canActivate,
       canDeactivate: [unsavedChangesGuard],
       data,
     },
     {
       path: `${p_path}/manage-members/:date`,
-      component: EventManageMembersComponent,
+      loadComponent: () =>
+        import('./components/event-manage-members/event-manage-members.component').then(
+          (m) => m.EventManageMembersComponent,
+        ),
       canActivate,
       canDeactivate: [unsavedChangesGuard],
       data,
@@ -50,11 +55,15 @@ export const routes: Routes = [
   },
   {
     path: 'signup',
-    component: SignupComponent,
+    loadComponent: () =>
+      import('./components/signup/signup.component').then((m) => m.SignupComponent),
   },
   {
     path: 'profile/missing',
-    component: MissingProfileComponent,
+    loadComponent: () =>
+      import('./components/missing-profile/missing-profile.component').then(
+        (m) => m.MissingProfileComponent,
+      ),
     canActivate: [authGuard, requireNotApprovedUserProfileGuard],
   },
   {
@@ -64,28 +73,35 @@ export const routes: Routes = [
   },
   {
     path: 'members/bulk-edit',
-    component: MembersBulkEditComponent,
+    loadComponent: () =>
+      import('./components/members-bulk-edit/members-bulk-edit.component').then(
+        (m) => m.MembersBulkEditComponent,
+      ),
     canActivate: [authGuard, requireApprovedUserProfileGuard, requireAdminGuard],
     canDeactivate: [unsavedChangesGuard],
   },
   {
     path: 'users',
-    component: UsersComponent,
+    loadComponent: () => import('./components/users/users.component').then((m) => m.UsersComponent),
     canActivate: [authGuard, requireApprovedUserProfileGuard, requireAdminGuard],
   },
   {
     path: 'tasks',
-    component: TasksComponent,
+    loadComponent: () => import('./components/tasks/tasks.component').then((m) => m.TasksComponent),
     canActivate: [authGuard, requireApprovedUserProfileGuard, requireAdminGuard],
   },
   {
     path: 'calendar',
-    component: CalendarComponent,
+    loadComponent: () =>
+      import('./components/calendar/calendar.component').then((m) => m.CalendarComponent),
     canActivate: [authGuard, requireApprovedUserProfileGuard, requireAdminGuard],
   },
   {
     path: 'member/create',
-    component: MemberUpdateComponent,
+    loadComponent: () =>
+      import('./components/member-update/member-update.component').then(
+        (m) => m.MemberUpdateComponent,
+      ),
     canActivate: [authGuard, requireApprovedUserProfileGuard],
     data: {
       mode: 'ADD',
@@ -93,7 +109,10 @@ export const routes: Routes = [
   },
   {
     path: 'member/update/:member',
-    component: MemberUpdateComponent,
+    loadComponent: () =>
+      import('./components/member-update/member-update.component').then(
+        (m) => m.MemberUpdateComponent,
+      ),
     canActivate: [authGuard, requireApprovedUserProfileGuard],
     data: {
       mode: 'UPDATE',
@@ -101,12 +120,14 @@ export const routes: Routes = [
   },
   {
     path: 'member/view/:id',
-    component: MemberViewComponent,
+    loadComponent: () =>
+      import('./components/member-view/member-view.component').then((m) => m.MemberViewComponent),
     canActivate: [authGuard, requireApprovedUserProfileGuard],
   },
   {
     path: 'alliances',
-    component: AlliancesComponent,
+    loadComponent: () =>
+      import('./components/alliances/alliances.component').then((m) => m.AlliancesComponent),
     canActivate: [authGuard, requireApprovedUserProfileGuard],
   },
   ...eventRoutes('foundries', 'foundry'),

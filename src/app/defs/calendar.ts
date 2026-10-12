@@ -3,6 +3,21 @@
  * so there are no timezone surprises. Weeks start on Monday.
  */
 
+import { toHhmm } from './local-time';
+
+export type CalendarEventKind = 'event' | 'foundry' | 'canyon-clash';
+
+/** Result of one occurrence of a results-tracking event, e.g. one SVS. */
+export interface DCalendarResult {
+  event_id: number;
+  occurrence_date: string;
+  our_score: number | null;
+  opponent: string | null;
+  opponent_score: number | null;
+  outcome: 'win' | 'loss' | 'draw' | null;
+  notes: string | null;
+}
+
 export interface DCalendarCheckpoint {
   id: number;
   event_id: number;
@@ -31,6 +46,10 @@ export interface DCalendarEvent {
   /** Start this many minutes earlier on days that also have one of `shift_if_same_day_as`. */
   shift_minutes: number | null;
   shift_if_same_day_as: number[];
+  /** 'foundry' / 'canyon-clash': each date links to that day's Foundry / CC record. */
+  kind: CalendarEventKind;
+  /** Regular events can record a result per date (e.g. SVS). */
+  track_results: boolean;
   checkpoints: DCalendarCheckpoint[];
   /** Occurrence start dates that were skipped. */
   skips: string[];
@@ -143,6 +162,120 @@ export function occurrenceStarts(p_event: DRecurrence, p_from: string, p_to: str
     starts.push(start);
   }
   return starts;
+}
+
+/**
+ * Finds the Foundry / CC record(s) for a calendar occurrence: same date, and the same time when
+ * the record's time (e.g. "14 UTC") matches the event's start time. `others` are the rest of that
+ * day's records, shown when there's no exact time match.
+ */
+export function matchRecords<T extends { date: string; time: string }>(
+  p_records: T[],
+  p_date: string,
+  p_startTime: string | null,
+): { match: T | null; others: T[] } {
+  const sameDay = p_records.filter((r) => r.date === p_date);
+  const wanted = toHhmm(p_startTime);
+  const match = (wanted && sameDay.find((r) => toHhmm(r.time) === wanted)) || null;
+  return { match, others: sameDay.filter((r) => r !== match) };
+}
+
+/** Checkpoints shown as one chip: same day, same time and the same task. */
+export interface DCheckpointGroup {
+  key: string;
+  date: string;
+  time: string | null;
+  title: string;
+  /** Every event occurrence this checkpoint belongs to (usually just one). */
+  points: DCheckpointOccurrence[];
+  /** All of them are on skipped occurrences. */
+  skipped: boolean;
+}
+
+/**
+ * Merges checkpoints that are really the same job - e.g. "Signup message" at 00:00 on both the
+ * Foundry 14 and Foundry 19 events - into one group. "Same job" = same day and time, and the same
+ * linked task (or, when there's no task, the same title).
+ */
+export function groupCheckpoints(p_points: DCheckpointOccurrence[]): DCheckpointGroup[] {
+  const groups = new Map<string, DCheckpointGroup>();
+  for (const point of p_points) {
+    const { checkpoint } = point;
+    const job =
+      checkpoint.task_id != null
+        ? `task:${checkpoint.task_id}`
+        : `title:${checkpoint.title.trim().toLowerCase()}`;
+    const key = `${point.date}|${checkpoint.time ?? ''}|${job}`;
+    const group = groups.get(key);
+    if (group) {
+      group.points.push(point);
+      group.skipped = group.skipped && point.skipped;
+    } else {
+      groups.set(key, {
+        key,
+        date: point.date,
+        time: checkpoint.time,
+        title: checkpoint.title,
+        points: [point],
+        skipped: point.skipped,
+      });
+    }
+  }
+  return [...groups.values()];
+}
+
+/** A multi-day occurrence drawn as one bar across a week row. */
+export interface DWeekBar {
+  occurrence: DOccurrence;
+  /** 1-based grid columns (Mon = 1); \`colEnd\` is exclusive, like CSS grid lines. */
+  colStart: number;
+  colEnd: number;
+  /** 0-based line the bar sits on, so overlapping bars stack instead of colliding. */
+  lane: number;
+  /** The bar carries on from the previous week / into the next one. */
+  continuesBefore: boolean;
+  continuesAfter: boolean;
+}
+
+/**
+ * Lays out the multi-day occurrences touching the week that starts on \`p_weekStart\` (a Monday):
+ * each becomes one bar, clipped to the week, placed on the first free lane.
+ * Longer bars are placed first so they stay on the upper lanes.
+ */
+export function layoutWeekBars(p_occurrences: DOccurrence[], p_weekStart: string): DWeekBar[] {
+  const weekEnd = addDays(p_weekStart, 6);
+  const bars = p_occurrences
+    .filter((o) => o.start !== o.end && o.start <= weekEnd && o.end >= p_weekStart)
+    .map((occurrence) => {
+      const start = occurrence.start < p_weekStart ? p_weekStart : occurrence.start;
+      const end = occurrence.end > weekEnd ? weekEnd : occurrence.end;
+      return {
+        occurrence,
+        colStart: daysBetween(p_weekStart, start) + 1,
+        colEnd: daysBetween(p_weekStart, end) + 2,
+        lane: 0,
+        continuesBefore: occurrence.start < p_weekStart,
+        continuesAfter: occurrence.end > weekEnd,
+      };
+    })
+    .sort(
+      (a, b) =>
+        a.colStart - b.colStart ||
+        b.colEnd - b.colStart - (a.colEnd - a.colStart) ||
+        a.occurrence.event.title.localeCompare(b.occurrence.event.title),
+    );
+
+  // Each lane remembers the column where it becomes free again
+  const laneFreeFrom: number[] = [];
+  for (const bar of bars) {
+    let lane = laneFreeFrom.findIndex((p_freeFrom) => p_freeFrom <= bar.colStart);
+    if (lane === -1) {
+      lane = laneFreeFrom.length;
+    }
+    laneFreeFrom[lane] = bar.colEnd;
+    bar.lane = lane;
+  }
+  return bars;
 }
 
 /** Whether the event has a (non-skipped) occurrence running on the given day. */
@@ -327,13 +460,18 @@ export function shortTime(p_time: string): string {
   return p_time.slice(0, 5);
 }
 
-/** Label for a checkpoint day relative to the event start, e.g. "Tue (day 2)", "Sun (1 day before)". */
+/**
+ * Label for a checkpoint day relative to the event start, e.g. "Thu · 3 days before",
+ * "Sun · event day", "Tue · 2 days after" - always saying before/after so the same weekday
+ * on either side of the event can't be mixed up.
+ */
 export function checkpointDayLabel(p_startDate: string, p_offset: number): string {
   const weekday = WEEKDAYS[weekdayIndex(addDays(p_startDate, p_offset))];
-  if (p_offset < 0) {
-    return `${weekday} (${-p_offset} day${p_offset === -1 ? '' : 's'} before)`;
+  if (p_offset === 0) {
+    return `${weekday} · event day`;
   }
-  return `${weekday} (day ${p_offset + 1})`;
+  const days = Math.abs(p_offset);
+  return `${weekday} · ${days} day${days === 1 ? '' : 's'} ${p_offset < 0 ? 'before' : 'after'}`;
 }
 
 /** "12:30:00" → 750 */

@@ -6,6 +6,9 @@ import {
   DCalendarEvent,
   describeRecurrence,
   describeTimes,
+  groupCheckpoints,
+  layoutWeekBars,
+  matchRecords,
   describeShift,
   nextOccurrenceStart,
   occurrencesInRange,
@@ -29,6 +32,8 @@ function event(p_changes: Partial<DCalendarEvent>): DCalendarEvent {
     repeat_until: null,
     shift_minutes: null,
     shift_if_same_day_as: [],
+    kind: 'event',
+    track_results: false,
     checkpoints: [],
     skips: [],
     ...p_changes,
@@ -227,10 +232,11 @@ describe('descriptions', () => {
   });
 
   it('labels checkpoint days relative to the start', () => {
-    expect(checkpointDayLabel('2026-10-12', 0)).toBe('Mon (day 1)');
-    expect(checkpointDayLabel('2026-10-12', 1)).toBe('Tue (day 2)');
-    expect(checkpointDayLabel('2026-10-12', -1)).toBe('Sun (1 day before)');
-    expect(checkpointDayLabel('2026-10-12', -2)).toBe('Sat (2 days before)');
+    expect(checkpointDayLabel('2026-10-12', 0)).toBe('Mon · event day');
+    expect(checkpointDayLabel('2026-10-12', 1)).toBe('Tue · 1 day after');
+    expect(checkpointDayLabel('2026-10-12', 3)).toBe('Thu · 3 days after');
+    expect(checkpointDayLabel('2026-10-12', -1)).toBe('Sun · 1 day before');
+    expect(checkpointDayLabel('2026-10-12', -4)).toBe('Thu · 4 days before');
   });
 });
 
@@ -357,5 +363,150 @@ describe('overlap warnings', () => {
     expect(
       occurrencesInRange([foundry, unruly], '2026-10-12', '2026-10-12').map((o) => o.overlapsWith),
     ).toEqual([['Bear'], ['Foundry']]);
+  });
+});
+
+describe('layoutWeekBars', () => {
+  const week = '2026-10-12'; // Monday
+  const occ = (p_title: string, p_start: string, p_end: string) =>
+    occurrencesInRange(
+      [event({ title: p_title, start_date: p_start, end_date: p_end })],
+      p_start,
+      p_end,
+    )[0];
+  const describeBars = (p_bars: ReturnType<typeof layoutWeekBars>) =>
+    p_bars.map(
+      (b) =>
+        `${b.occurrence.event.title} ${b.colStart}-${b.colEnd} lane${b.lane}` +
+        (b.continuesBefore ? ' <' : '') +
+        (b.continuesAfter ? ' >' : ''),
+    );
+
+  it('draws a multi-day event as one bar, ignoring single-day ones', () => {
+    const showdown = occ('Showdown', '2026-10-12', '2026-10-17'); // Mon-Sat
+    const bear = occ('Bear', '2026-10-13', '2026-10-13');
+    expect(describeBars(layoutWeekBars([showdown, bear], week))).toEqual(['Showdown 1-7 lane0']);
+  });
+
+  it('clips bars to the week and flags that they continue', () => {
+    const svs = occ('SvS', '2026-10-09', '2026-10-21'); // Fri before -> Wed after
+    expect(describeBars(layoutWeekBars([svs], week))).toEqual(['SvS 1-8 lane0 < >']);
+    expect(describeBars(layoutWeekBars([svs], '2026-10-19'))).toEqual(['SvS 1-4 lane0 <']);
+  });
+
+  it('stacks overlapping bars and reuses a lane once it is free', () => {
+    const a = occ('A', '2026-10-12', '2026-10-14'); // Mon-Wed
+    const b = occ('B', '2026-10-13', '2026-10-16'); // Tue-Fri, overlaps A
+    const c = occ('C', '2026-10-15', '2026-10-18'); // Thu-Sun, A is done by then
+    expect(describeBars(layoutWeekBars([c, b, a], week))).toEqual([
+      'A 1-4 lane0',
+      'B 2-6 lane1',
+      'C 4-8 lane0',
+    ]);
+  });
+});
+
+describe('groupCheckpoints', () => {
+  const cp = (
+    p_id: number,
+    p_title: string,
+    p_time: string | null,
+    p_taskId: number | null,
+    p_offset = -5,
+  ) => ({
+    id: p_id,
+    event_id: 0,
+    day_offset: p_offset,
+    time: p_time,
+    title: p_title,
+    notes: null,
+    task_id: p_taskId,
+  });
+  // Two Foundry events on the same Sunday, both with a "Signup message" 5 days before
+  const foundry14 = event({
+    id: 14,
+    title: 'Foundry 14',
+    start_date: '2026-10-18',
+    end_date: '2026-10-18',
+    repeat_every: 2,
+    checkpoints: [cp(1, 'Signup Message', '00:00:00', null)],
+  });
+  const foundry19 = event({
+    id: 19,
+    title: 'Foundry 19',
+    start_date: '2026-10-18',
+    end_date: '2026-10-18',
+    repeat_every: 2,
+    checkpoints: [cp(2, 'signup message ', '00:00:00', null)],
+  });
+  const groupsOn = (p_events: DCalendarEvent[], p_date: string) =>
+    groupCheckpoints(checkpointsInRange(p_events, p_date, p_date)).map(
+      (g) =>
+        `${g.title}: ${g.points.map((p) => p.event.title).join(' + ')}${g.skipped ? ' (skipped)' : ''}`,
+    );
+
+  it('shows the same job at the same time once, listing every event', () => {
+    expect(groupsOn([foundry14, foundry19], '2026-10-13')).toEqual([
+      'Signup Message: Foundry 14 + Foundry 19',
+    ]);
+  });
+
+  it('keeps them apart when the time differs', () => {
+    const later = { ...foundry19, checkpoints: [cp(2, 'Signup Message', '12:00:00', null)] };
+    expect(groupsOn([foundry14, later], '2026-10-13')).toHaveLength(2);
+  });
+
+  it('groups by linked task even when the titles differ', () => {
+    const a = { ...foundry14, checkpoints: [cp(1, 'Post signup', '00:00:00', 7)] };
+    const b = { ...foundry19, checkpoints: [cp(2, 'Signup reminder', '00:00:00', 7)] };
+    const c = {
+      ...foundry19,
+      id: 20,
+      title: 'Other',
+      checkpoints: [cp(3, 'Post signup', '00:00:00', 8)],
+    };
+    expect(groupsOn([a, b, c], '2026-10-13')).toEqual([
+      'Post signup: Foundry 14 + Foundry 19',
+      'Post signup: Other',
+    ]);
+  });
+
+  it('is only "skipped" when every event in it is skipped', () => {
+    const skipped14 = { ...foundry14, skips: ['2026-10-18'] };
+    expect(groupsOn([skipped14, foundry19], '2026-10-13')).toEqual([
+      'Signup Message: Foundry 14 + Foundry 19',
+    ]);
+    const skipped19 = { ...foundry19, skips: ['2026-10-18'] };
+    expect(groupsOn([skipped14, skipped19], '2026-10-13')).toEqual([
+      'Signup Message: Foundry 14 + Foundry 19 (skipped)',
+    ]);
+  });
+});
+
+describe('matchRecords', () => {
+  const records = [
+    { id: 1, date: '2026-10-18', time: '14 UTC' },
+    { id: 2, date: '2026-10-18', time: '19 UTC' },
+    { id: 3, date: '2026-10-25', time: '14 UTC' },
+  ];
+
+  it('picks the record on the same date at the same time', () => {
+    const result = matchRecords(records, '2026-10-18', '14:00:00');
+    expect(result.match?.id).toBe(1);
+    expect(result.others.map((r) => r.id)).toEqual([2]);
+  });
+
+  it("lists the day's records when no time matches", () => {
+    const result = matchRecords(records, '2026-10-18', '12:00:00');
+    expect(result.match).toBeNull();
+    expect(result.others.map((r) => r.id)).toEqual([1, 2]);
+  });
+
+  it('finds nothing on a day without records', () => {
+    expect(matchRecords(records, '2026-11-01', '14:00:00')).toEqual({ match: null, others: [] });
+  });
+
+  it('only lists the day when the event has no time', () => {
+    expect(matchRecords(records, '2026-10-18', null).match).toBeNull();
   });
 });

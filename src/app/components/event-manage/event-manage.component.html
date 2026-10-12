@@ -128,6 +128,9 @@
                 L{{ event.legion }}
               </span>
               {{ event.time }}
+              @if (event.date | localTime: event.time; as local) {
+              <span class="small text-body-secondary">({{ local }} your time)</span>
+              }
               @if (event.opponent && editingId() !== event.id) {
               vs {{ event.opponent }}@if (event.opponent_2) { &amp; {{ event.opponent_2 }}}
               }

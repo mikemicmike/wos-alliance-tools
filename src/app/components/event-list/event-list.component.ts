@@ -2,6 +2,9 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { DecimalPipe } from '@angular/common';
 
+import { LocalTimePipe } from '../../defs/local-time';
+import { addDays, DCalendarEvent, occurrencesInRange, shortTime } from '../../defs/calendar';
+import { CalendarService } from '../../services/calendar.service';
 import { injectEventKind, LEGIONS, todayUtc } from '../../defs/event-kind';
 import {
   assignLegionSlots,
@@ -11,6 +14,9 @@ import {
 } from '../../services/events.service';
 
 type DayStatus = 'Upcoming' | 'Today' | 'Done';
+
+/** How far ahead calendar dates show up as "planned". */
+const PLANNED_WEEKS = 8;
 type StatusFilter = DayStatus | 'All';
 
 interface DDay {
@@ -20,17 +26,20 @@ interface DDay {
   legions: (DEvent | null)[];
   /** Events that don't fit a legion slot (duplicates / legacy rows). */
   extras: DEvent[];
+  /** On the calendar but not set up here yet, e.g. "Foundry 14 · 14:00". */
+  planned: string[];
 }
 
 @Component({
   selector: 'app-event-list',
-  imports: [DecimalPipe, RouterLink],
+  imports: [DecimalPipe, RouterLink, LocalTimePipe],
   templateUrl: './event-list.component.html',
   styleUrl: './event-list.component.scss',
 })
 export class EventListComponent {
   private readonly router = inject(Router);
   private readonly eventsService = inject(EventsService);
+  private readonly calendarService = inject(CalendarService);
 
   readonly config = injectEventKind();
   readonly legions = LEGIONS;
@@ -42,6 +51,29 @@ export class EventListComponent {
   readonly loading = signal(true);
 
   readonly events = signal<DEvent[]>([]);
+  /** Calendar events of this kind (admins only; empty for everyone else). */
+  readonly calendarEvents = signal<DCalendarEvent[]>([]);
+
+  /** Upcoming calendar dates for this kind that have no record yet. */
+  private readonly plannedDates = computed(() => {
+    const recorded = new Set(this.events().map((e) => e.date));
+    const planned = new Map<string, string[]>();
+    const occurrences = occurrencesInRange(
+      this.calendarEvents(),
+      this.today,
+      addDays(this.today, PLANNED_WEEKS * 7),
+    );
+    for (const occurrence of occurrences) {
+      if (occurrence.skipped || recorded.has(occurrence.start)) {
+        continue;
+      }
+      const label = occurrence.event.start_time
+        ? `${occurrence.event.title} · ${shortTime(occurrence.event.start_time)} UTC`
+        : occurrence.event.title;
+      planned.set(occurrence.start, [...(planned.get(occurrence.start) ?? []), label]);
+    }
+    return planned;
+  });
 
   readonly days = computed<DDay[]>(() => {
     const byDate = new Map<string, DEvent[]>();
@@ -49,17 +81,21 @@ export class EventListComponent {
       byDate.set(w_event.date, [...(byDate.get(w_event.date) ?? []), w_event]);
     }
 
-    return [...byDate.entries()]
-      .sort(([a], [b]) => b.localeCompare(a))
-      .map(([date, events]) => {
-        const { slots, extras } = assignLegionSlots(events);
-        return {
-          date,
-          status: date > this.today ? 'Upcoming' : date === this.today ? 'Today' : 'Done',
-          legions: slots,
-          extras,
-        };
-      });
+    const status = (p_date: string): DayStatus =>
+      p_date > this.today ? 'Upcoming' : p_date === this.today ? 'Today' : 'Done';
+
+    const recordedDays = [...byDate.entries()].map(([date, events]) => {
+      const { slots, extras } = assignLegionSlots(events);
+      return { date, status: status(date), legions: slots, extras, planned: [] };
+    });
+    const plannedDays = [...this.plannedDates().entries()].map(([date, planned]) => ({
+      date,
+      status: status(date),
+      legions: LEGIONS.map(() => null),
+      extras: [],
+      planned,
+    }));
+    return [...recordedDays, ...plannedDays].sort((a, b) => b.date.localeCompare(a.date));
   });
 
   readonly filteredDays = computed(() => {
@@ -105,7 +141,9 @@ export class EventListComponent {
   }
 
   dayClick(p_day: DDay): void {
-    void this.router.navigate([this.config.path, 'manage', p_day.date]);
+    // Planned dates go straight to setting up registrations
+    const page = p_day.planned.length ? 'manage-members' : 'manage';
+    void this.router.navigate([this.config.path, page, p_day.date]);
   }
 
   setSearchTerm(event: Event): void {
@@ -125,7 +163,13 @@ export class EventListComponent {
     this.loading.set(true);
     this.error.set(null);
     try {
-      this.events.set(await this.eventsService.list(this.config.kind));
+      const [events, calendarEvents] = await Promise.all([
+        this.eventsService.list(this.config.kind),
+        // The calendar is admin-only; for everyone else this just stays empty
+        this.calendarService.list().catch(() => [] as DCalendarEvent[]),
+      ]);
+      this.events.set(events);
+      this.calendarEvents.set(calendarEvents.filter((e) => e.kind === this.config.kind));
     } catch (error) {
       this.error.set(
         error instanceof Error ? error.message : `Unable to load ${this.config.plural}`,

@@ -3,6 +3,7 @@ import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular
 import { ActivatedRoute, Router } from '@angular/router';
 import { DecimalPipe } from '@angular/common';
 
+import { LocalTimePipe } from '../../defs/local-time';
 import { injectEventKind } from '../../defs/event-kind';
 import { HasUnsavedChanges, warnBeforeUnload } from '../../guards/unsaved-changes.guard';
 import { SupabaseService } from '../../services/supabase.service';
@@ -32,7 +33,7 @@ type EventForm = FormGroup<{
 
 @Component({
   selector: 'app-event-manage',
-  imports: [ReactiveFormsModule, DecimalPipe],
+  imports: [ReactiveFormsModule, DecimalPipe, LocalTimePipe],
   templateUrl: './event-manage.component.html',
   styleUrl: './event-manage.component.scss',
 })

@@ -155,6 +155,10 @@
               {{ day.date }}
             </td>
             <td>
+              @if (day.planned.length) {
+              <span class="badge rounded-pill text-bg-light border"
+                    title="On the calendar, not set up here yet">Planned</span>
+              } @else {
               @switch (day.status) {
               @case ('Upcoming') {
               <span class="badge rounded-pill bg-warning text-dark">Upcoming</span>
@@ -166,6 +170,7 @@
               <span class="badge rounded-pill bg-success">Done</span>
               }
               }
+              }
               @if (day.extras.length) {
               <span class="badge rounded-pill text-bg-secondary ms-1"
                     title="There are more records on this date than legions - open it to clean up">
@@ -173,12 +178,23 @@
               </span>
               }
             </td>
+            @if (day.planned.length) {
+            <!-- From the calendar: not set up yet -->
+            <td colspan="2"
+                class="text-body-secondary small">
+              {{ day.planned.join(', ') }}
+              <span class="ms-2 text-primary">Set up registrations ›</span>
+            </td>
+            } @else {
             @for (event of day.legions; track $index) {
             <td class="legion-col"
                 [class.legion-col-2]="$index === 1">
               @if (event) {
               <div class="d-flex flex-wrap align-items-center gap-2">
-                <span class="text-body-secondary text-nowrap">{{ event.time }}</span>
+                <span class="text-body-secondary text-nowrap">
+                  {{ event.time }}
+                  @if (event.date | localTime: event.time; as local) { ({{ local }}) }
+                </span>
                 @if (event.opponent) {
                 <span>
                   vs <strong>{{ event.opponent }}</strong>
@@ -217,6 +233,7 @@
               <span class="text-body-tertiary">—</span>
               }
             </td>
+            }
             }
           </tr>
           } @empty {

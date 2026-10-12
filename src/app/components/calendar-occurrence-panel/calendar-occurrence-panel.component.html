@@ -1,0 +1,221 @@
+@let current = occurrence();
+@let ev = event();
+<div class="modal-backdrop fade show"></div>
+<div class="modal fade show d-block"
+     tabindex="-1"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="occurrence-title"
+     (click)="close()">
+  <div class="modal-dialog modal-dialog-scrollable"
+       (click)="$event.stopPropagation()">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5"
+            id="occurrence-title">
+          <span [style.color]="colorHex(ev.color)">●</span>
+          {{ ev.title }}
+          <div class="small text-body-secondary fw-normal">
+            {{ current.start }}
+            @if (current.startTime) {
+            · {{ current.startTime }} UTC
+            @if (current.start | localTime: current.startTime; as local) { ({{ local }} your time) }
+            }
+            @if (current.skipped) { · <strong>skipped</strong> }
+          </div>
+          @if (shiftNote(); as note) {
+          <div class="small text-body-secondary fw-normal">⇠ {{ note }}</div>
+          }
+        </h2>
+        <button type="button"
+                class="btn-close"
+                aria-label="Close"
+                (click)="close()"></button>
+      </div>
+
+      <div class="modal-body">
+        @if (error()) {
+        <div class="alert alert-danger py-2">{{ error() }}</div>
+        }
+
+        <!-- Foundry / Canyon Clash: the record played at this time -->
+        @if (linkConfig(); as config) {
+        @let found = link()!;
+        @if (found.match; as record) {
+        @let place = placement(record);
+        <div class="linked-record mb-3">
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="badge rounded-pill"
+                  [class.l1]="record.legion === 1"
+                  [class.l2]="record.legion === 2">L{{ record.legion }}</span>
+            <strong>{{ config.label }} {{ record.time }}</strong>
+            @if (record.opponent) {
+            <span>vs {{ record.opponent }}@if (record.opponent_2) { &amp; {{ record.opponent_2 }}}</span>
+            }
+            @if (place !== null) {
+            @if (config.opponents === 1) {
+            <span class="badge"
+                  [class.text-bg-success]="place === 1"
+                  [class.text-bg-danger]="place !== 1">{{ place === 1 ? 'Win' : 'Loss' }}</span>
+            } @else {
+            <span class="badge"
+                  [class.text-bg-success]="place === 1"
+                  [class.text-bg-warning]="place === 2"
+                  [class.text-bg-danger]="place === 3">{{ place === 1 ? '1st' : place === 2 ? '2nd' : '3rd' }}</span>
+            }
+            }
+          </div>
+          @if (record.our_score !== null) {
+          <div class="small mt-1">
+            KNi {{ record.our_score | number }}
+            · {{ record.opponent || 'Opponent' }} {{ record.opponent_score | number }}
+            @if (record.opponent_2) { · {{ record.opponent_2 }} {{ record.opponent_2_score | number }} }
+          </div>
+          } @else {
+          <div class="small text-body-secondary mt-1">No result entered yet.</div>
+          }
+        </div>
+        } @else {
+        <div class="alert alert-light border small">
+          No {{ config.label }} set up for this date
+          @if (current.startTime) { at {{ current.startTime }} UTC }
+          yet.
+          @if (found.others.length) {
+          <div class="mt-1">
+            That day there is:
+            @for (other of found.others; track other.id) {
+            <span class="badge text-bg-secondary ms-1">L{{ other.legion }} · {{ other.time }}</span>
+            }
+          </div>
+          }
+        </div>
+        }
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button"
+                  class="btn btn-primary btn-sm"
+                  (click)="openDay()">
+            Open {{ config.label }} {{ current.start }}
+          </button>
+          <button type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  (click)="openDay(true)">
+            {{ found.match ? 'Edit registrations' : 'Set up registrations' }}
+          </button>
+        </div>
+        }
+
+        <!-- Results for events that track them (e.g. SVS) -->
+        @if (ev.track_results && ev.kind === 'event') {
+        <div class="row g-2 mb-2">
+          <div class="col-6">
+            <label for="result-our"
+                   class="form-label small fw-semibold">Our score</label>
+            <input id="result-our"
+                   type="number"
+                   class="form-control"
+                   [value]="ourScore()"
+                   (change)="setScore('ours', $event)" />
+          </div>
+          <div class="col-6">
+            <label for="result-their"
+                   class="form-label small fw-semibold">Their score</label>
+            <input id="result-their"
+                   type="number"
+                   class="form-control"
+                   [value]="opponentScore()"
+                   (change)="setScore('theirs', $event)" />
+          </div>
+          <div class="col-12">
+            <label for="result-opponent"
+                   class="form-label small fw-semibold">Opponent</label>
+            <input id="result-opponent"
+                   class="form-control"
+                   placeholder="e.g. State 1234"
+                   [value]="opponent()"
+                   (input)="opponent.set($any($event.target).value)" />
+          </div>
+          <div class="col-12">
+            <span class="form-label small fw-semibold d-block">Result</span>
+            <div class="btn-group"
+                 role="group"
+                 aria-label="Result">
+              <button type="button"
+                      class="btn"
+                      [class.btn-success]="outcome() === 'win'"
+                      [class.btn-outline-success]="outcome() !== 'win'"
+                      [attr.aria-pressed]="outcome() === 'win'"
+                      (click)="setOutcome('win')">Win</button>
+              <button type="button"
+                      class="btn"
+                      [class.btn-danger]="outcome() === 'loss'"
+                      [class.btn-outline-danger]="outcome() !== 'loss'"
+                      [attr.aria-pressed]="outcome() === 'loss'"
+                      (click)="setOutcome('loss')">Loss</button>
+              <button type="button"
+                      class="btn"
+                      [class.btn-secondary]="outcome() === 'draw'"
+                      [class.btn-outline-secondary]="outcome() !== 'draw'"
+                      [attr.aria-pressed]="outcome() === 'draw'"
+                      (click)="setOutcome('draw')">Draw</button>
+            </div>
+          </div>
+          <div class="col-12">
+            <label for="result-notes"
+                   class="form-label small fw-semibold">Notes</label>
+            <textarea id="result-notes"
+                      class="form-control"
+                      rows="2"
+                      [value]="notes()"
+                      (input)="notes.set($any($event.target).value)"></textarea>
+          </div>
+        </div>
+        <div class="d-flex gap-2 mb-3">
+          <button type="button"
+                  class="btn btn-primary btn-sm"
+                  [disabled]="saving()"
+                  (click)="saveResult()">Save result</button>
+          @if (existingResult()) {
+          <button type="button"
+                  class="btn btn-outline-danger btn-sm"
+                  [disabled]="saving()"
+                  (click)="clearResult()">Clear</button>
+          }
+        </div>
+
+        @if (history().length) {
+        <div class="small fw-semibold text-body-secondary mb-1">Previous results</div>
+        <ul class="list-unstyled small mb-0">
+          @for (past of history(); track past.occurrence_date) {
+          <li>
+            {{ past.occurrence_date }} ·
+            @if (past.outcome) {
+            <span class="badge"
+                  [class.text-bg-success]="past.outcome === 'win'"
+                  [class.text-bg-danger]="past.outcome === 'loss'"
+                  [class.text-bg-secondary]="past.outcome === 'draw'">{{ past.outcome === 'win' ? 'W' : past.outcome === 'loss' ? 'L' : 'D' }}</span>
+            }
+            @if (past.opponent) { vs {{ past.opponent }} }
+            @if (past.our_score !== null) { {{ past.our_score | number }} – {{ past.opponent_score | number }} }
+            @if (past.notes) { <span class="text-body-secondary">· {{ past.notes }}</span> }
+          </li>
+          }
+        </ul>
+        }
+        }
+
+        @if (ev.notes) {
+        <div class="small text-body-secondary mt-3">{{ ev.notes }}</div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        <button type="button"
+                class="btn btn-outline-secondary me-auto"
+                (click)="edit.emit()">Edit event</button>
+        <button type="button"
+                class="btn btn-secondary"
+                (click)="close()">Close</button>
+      </div>
+    </div>
+  </div>
+</div>

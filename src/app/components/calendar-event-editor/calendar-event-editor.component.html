@@ -61,6 +61,41 @@
           </div>
         </div>
 
+        <!-- What kind of event: Foundry / CC dates link to their own pages -->
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-12 col-md-4">
+            <label for="event-kind"
+                   class="form-label small fw-semibold">Type</label>
+            <select id="event-kind"
+                    class="form-select"
+                    (change)="set(kind, $any($event.target).value)">
+              <option value="event"
+                      [selected]="kind() === 'event'">Regular event</option>
+              <option value="foundry"
+                      [selected]="kind() === 'foundry'">Foundry</option>
+              <option value="canyon-clash"
+                      [selected]="kind() === 'canyon-clash'">Canyon Clash</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-8 small text-body-secondary">
+            @if (kind() === 'event') {
+            <div class="form-check mb-1">
+              <input id="event-track-results"
+                     type="checkbox"
+                     class="form-check-input"
+                     [checked]="trackResults()"
+                     (change)="set(trackResults, $any($event.target).checked)" />
+              <label for="event-track-results"
+                     class="form-check-label">Track results (score vs opponent, win/loss, notes) for each date - e.g.
+                SVS</label>
+            </div>
+            } @else {
+            Clicking a date shows the {{ kind() === 'foundry' ? 'Foundry' : 'Canyon Clash' }} played at this event's
+            time that day, and links to its registrations / results.
+            }
+          </div>
+        </div>
+
         <!-- When: a date and an optional time; the end is opt-in -->
         <div class="row g-2 align-items-end mb-1">
           <div class="col-6 col-md-3">
@@ -115,6 +150,8 @@
         <div class="small text-body-secondary mb-2">
           @if (allDay()) {
           No time = all day.
+          } @else if (startDate() | localTime: startTime(); as local) {
+          {{ startTime() }} UTC is <strong>{{ local }}</strong> your time@if (showEnd() && (endDate() | localTime: endTime()); as localEnd) {, ends <strong>{{ localEnd }}</strong>}.
           }
           @if (!showEnd()) {
           <button type="button"

@@ -1,4 +1,5 @@
-.calendar-grid {
+.calendar-weekdays,
+.calendar-week {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
 }
@@ -11,11 +12,15 @@
   border-bottom: 1px solid var(--bs-border-color);
 }
 
-.calendar-day {
+.calendar-week {
   min-height: 7.5rem;
-  padding: 0.25rem;
-  border-right: 1px solid var(--bs-border-color-translucent);
   border-bottom: 1px solid var(--bs-border-color-translucent);
+}
+
+// Day background: spans every row of its week, and is what you click to add a one-off
+.calendar-day {
+  grid-row: 1 / -1;
+  border-right: 1px solid var(--bs-border-color-translucent);
   cursor: pointer;
 
   &:hover {
@@ -24,13 +29,33 @@
 
   &.out-of-month {
     background-color: var(--bs-secondary-bg);
+  }
+}
 
-    .calendar-date {
-      color: var(--bs-tertiary-color);
-    }
+// Dates and day items sit on top of the background; clicks between items fall through to it
+.calendar-date,
+.day-content {
+  position: relative;
+  z-index: 1;
+  padding: 0 0.25rem;
+  pointer-events: none;
+}
+
+.day-content > * {
+  pointer-events: auto;
+}
+
+.calendar-date {
+  grid-row: 1;
+  padding-top: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+
+  &.out-of-month {
+    color: var(--bs-tertiary-color);
   }
 
-  &.today .calendar-date {
+  &.today span {
     display: inline-block;
     min-width: 1.6rem;
     border-radius: 999px;
@@ -38,12 +63,6 @@
     color: white;
     background-color: var(--bs-primary);
   }
-}
-
-.calendar-date {
-  font-size: 0.8rem;
-  font-weight: 600;
-  margin-bottom: 0.15rem;
 }
 
 .event-chip {
@@ -60,14 +79,35 @@
   white-space: nowrap;
   color: white;
 
-  &.continues {
-    opacity: 0.75;
-  }
-
   &.skipped {
     opacity: 0.35;
     text-decoration: line-through;
   }
+}
+
+// A multi-day event: one bar spanning its days in the week row
+.event-bar {
+  position: relative;
+  z-index: 2;
+  width: auto;
+  margin: 0 0.25rem 2px;
+
+  // Flat, edge-to-edge ends where it carries on from / into another week
+  &.continues-before {
+    margin-left: 0;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+
+  &.continues-after {
+    margin-right: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+}
+
+.bar-more {
+  float: right;
 }
 
 .event-chip.overlapping {
@@ -77,6 +117,11 @@
 
 .chip-flag {
   margin-right: 0.15rem;
+}
+
+.chip-local {
+  margin-right: 0.2rem;
+  opacity: 0.85;
 }
 
 .chip-time {
@@ -143,4 +188,12 @@
   height: 0.7rem;
   margin-right: 0.35rem;
   border-radius: 50%;
+}
+
+// W/L (or 1st-3rd) on a date that has a result
+.result-badge {
+  margin-left: 0.25rem;
+  padding: 0.1rem 0.3rem;
+  font-size: 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.6);
 }

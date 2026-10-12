@@ -72,7 +72,9 @@
               <option value="">Not playing</option>
               @for (time of timeOptions(slot); track time) {
               <option [value]="time"
-                      [selected]="time === slot.time">{{ time }}</option>
+                      [selected]="time === slot.time">
+                {{ time }}@if (date() | localTime: time; as local) { ({{ local }} your time)}
+              </option>
               }
             </select>
 
@@ -141,6 +143,7 @@
               Legion {{ slot.legion }}
               @if (slot.time) {
               · {{ slot.time }}
+              @if (date() | localTime: slot.time; as local) { <span class="fw-normal">({{ local }})</span> }
               } @else {
               <span class="fw-normal">(not playing)</span>
               }
