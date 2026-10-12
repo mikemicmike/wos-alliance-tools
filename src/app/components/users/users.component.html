@@ -40,15 +40,25 @@
               }
             </td>
             <td>
-              @if (linkedMember(profile); as member) {
-              {{ member }}
-              <button type="button"
-                      class="btn btn-link btn-sm p-0 ms-1 align-baseline"
+              <select class="form-select form-select-sm w-auto"
+                      [attr.aria-label]="'Member linked to ' + (profile.display_name || 'this user')"
                       [disabled]="busyId() === profile.id"
-                      (click)="unlinkMember(profile)">unlink</button>
-              } @else {
-              <span class="text-body-tertiary small">not linked</span>
-              }
+                      (change)="setMember(profile, $event)">
+                <option value=""
+                        [selected]="profile.member_id == null">— not linked —</option>
+                @if (linkedToInactive(profile)) {
+                <option [value]="profile.member_id"
+                        selected>#{{ profile.member_id }} (inactive)</option>
+                }
+                @for (member of members(); track member.id) {
+                @let taken = takenBy(member.id, profile);
+                <option [value]="member.id"
+                        [selected]="member.id === profile.member_id"
+                        [disabled]="!!taken">
+                  {{ member.name }}@if (taken) { (linked to {{ taken }})}
+                </option>
+                }
+              </select>
             </td>
             <td>
               <span class="badge"

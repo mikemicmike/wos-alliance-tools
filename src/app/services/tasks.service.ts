@@ -19,7 +19,16 @@ export interface DTask {
   created_at: string;
   title: string;
   notes: string | null;
+  category_id: number | null;
+  /** Position within its category. */
+  sort_order: number;
   assignments: DTaskAssignment[];
+}
+
+export interface DTaskCategory {
+  id: number;
+  name: string;
+  sort_order: number;
 }
 
 /**
@@ -36,6 +45,7 @@ export class TasksService {
     const { data, error } = await this.supabase
       .from('tasks')
       .select('*, assignments:task_assignments(*, member:members(id, name, gameId))')
+      .order('sort_order')
       .order('title');
 
     if (error) {
@@ -45,15 +55,90 @@ export class TasksService {
     return data as DTask[];
   }
 
-  async createTask(p_title: string, p_notes: string | null): Promise<void> {
-    const { error } = await this.supabase.from('tasks').insert({ title: p_title, notes: p_notes });
+  async listCategories(): Promise<DTaskCategory[]> {
+    const { data, error } = await this.supabase
+      .from('task_categories')
+      .select('id, name, sort_order')
+      .order('sort_order')
+      .order('name');
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return data as DTaskCategory[];
+  }
+
+  async createCategory(p_name: string, p_sortOrder: number): Promise<void> {
+    const { error } = await this.supabase
+      .from('task_categories')
+      .insert({ name: p_name, sort_order: p_sortOrder });
 
     if (error) {
       throw new Error(error.message);
     }
   }
 
-  async updateTask(p_id: number, p_changes: { title?: string; notes?: string | null }) {
+  async renameCategory(p_id: number, p_name: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('task_categories')
+      .update({ name: p_name })
+      .eq('id', p_id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  /** Its tasks become uncategorized (`on delete set null`). */
+  async removeCategory(p_id: number): Promise<void> {
+    const { error } = await this.supabase.from('task_categories').delete().eq('id', p_id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  /** Each id gets its position in the array, in one database call. */
+  async reorderCategories(p_ids: number[]): Promise<void> {
+    const { error } = await this.supabase.rpc('reorder_task_categories', { p_category_ids: p_ids });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  /** Each id gets its position in the array, in one database call. */
+  async reorderTasks(p_ids: number[]): Promise<void> {
+    const { error } = await this.supabase.rpc('reorder_tasks', { p_task_ids: p_ids });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  async createTask(p_input: {
+    title: string;
+    notes: string | null;
+    category_id: number | null;
+    sort_order: number;
+  }): Promise<void> {
+    const { error } = await this.supabase.from('tasks').insert(p_input);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  }
+
+  async updateTask(
+    p_id: number,
+    p_changes: {
+      title?: string;
+      notes?: string | null;
+      category_id?: number | null;
+      sort_order?: number;
+    },
+  ) {
     const { error } = await this.supabase.from('tasks').update(p_changes).eq('id', p_id);
 
     if (error) {

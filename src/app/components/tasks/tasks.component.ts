@@ -2,7 +2,13 @@ import { Component, computed, inject, signal } from '@angular/core';
 
 import { MembersService } from '../../services/members.service';
 import { SupabaseService } from '../../services/supabase.service';
-import { DTask, DTaskAssignment, TaskRole, TasksService } from '../../services/tasks.service';
+import {
+  DTask,
+  DTaskAssignment,
+  DTaskCategory,
+  TaskRole,
+  TasksService,
+} from '../../services/tasks.service';
 
 interface DAssignmentDraft {
   memberId: number | null;
@@ -14,6 +20,16 @@ const EMPTY_DRAFT: DAssignmentDraft = { memberId: null, role: 'owner', notes: ''
 
 /** 'all', 'me' (the member linked to this login) or a member id. */
 type PersonFilter = 'all' | 'me' | number;
+
+/** A category (or "Uncategorized" when null) and its tasks in order. */
+interface DSection {
+  key: string;
+  category: DTaskCategory | null;
+  /** Every task in the category, in order - used for numbering and reordering. */
+  allTasks: DTask[];
+  /** The ones matching the current search / person filter. */
+  tasks: DTask[];
+}
 
 @Component({
   selector: 'app-tasks',
@@ -30,11 +46,23 @@ export class TasksComponent {
   readonly error = signal<string | null>(null);
 
   readonly tasks = signal<DTask[]>([]);
-  readonly members = signal<{ id: number; name: string; gameId: number | null }[]>([]);
+  readonly categories = signal<DTaskCategory[]>([]);
+  readonly members = signal<DMemberOption[]>([]);
+
+  /** Members grouped by rank, highest first (R4 above R3 ...), for the pickers. */
+  readonly membersByRank = computed(() => groupByRank(this.members()));
   readonly search = signal('');
   readonly personFilter = signal<PersonFilter>('all');
   /** Showing the "which member are you?" picker. */
   readonly linking = signal(false);
+  /** Task rows opened for editing. */
+  readonly expanded = signal(new Set<number>());
+
+  readonly newCategoryName = signal('');
+  /** "Add a task" input per section. */
+  readonly newTaskTitles = signal<Record<string, string>>({});
+  /** "Add person" form state per task. */
+  readonly drafts = signal<Record<number, DAssignmentDraft>>({});
 
   readonly linkedMemberId = this.supabaseService.linkedMemberId;
   readonly linkedMemberName = computed(() => this.memberName(this.linkedMemberId()));
@@ -45,25 +73,45 @@ export class TasksComponent {
     return filter === 'all' ? null : filter === 'me' ? this.linkedMemberId() : filter;
   });
 
-  readonly newTitle = signal('');
-  readonly newNotes = signal('');
+  /** Reordering only makes sense on the full, unfiltered list. */
+  readonly filtering = computed(() => !!this.search().trim() || this.filterMemberId() !== null);
 
-  /** "Add person" form state per task. */
-  readonly drafts = signal<Record<number, DAssignmentDraft>>({});
-
-  readonly filteredTasks = computed(() => {
+  readonly sections = computed<DSection[]>(() => {
     const query = this.search().trim().toLowerCase();
     const memberId = this.filterMemberId();
-    return this.tasks().filter(
-      (p_task) =>
-        (memberId === null || p_task.assignments.some((a) => a.member_id === memberId)) &&
-        (!query ||
-          [p_task.title, p_task.notes, ...p_task.assignments.map((a) => a.member.name)]
-            .join(' ')
-            .toLowerCase()
-            .includes(query)),
-    );
+    const categoryIds = new Set(this.categories().map((c) => c.id));
+    const matches = (p_task: DTask) =>
+      (memberId === null || p_task.assignments.some((a) => a.member_id === memberId)) &&
+      (!query ||
+        [p_task.title, p_task.notes, ...p_task.assignments.map((a) => a.member.name)]
+          .join(' ')
+          .toLowerCase()
+          .includes(query));
+    const ordered = (p_tasks: DTask[]) =>
+      [...p_tasks].sort((a, b) => a.sort_order - b.sort_order || a.title.localeCompare(b.title));
+
+    const sections: DSection[] = [
+      ...this.categories().map((p_category) => ({
+        key: String(p_category.id),
+        category: p_category,
+        allTasks: ordered(this.tasks().filter((t) => t.category_id === p_category.id)),
+      })),
+      {
+        key: 'none',
+        category: null,
+        allTasks: ordered(
+          this.tasks().filter((t) => t.category_id === null || !categoryIds.has(t.category_id)),
+        ),
+      },
+    ].map((p_section) => ({ ...p_section, tasks: p_section.allTasks.filter(matches) }));
+
+    // Hide empty sections while filtering, and an empty "Uncategorized" always
+    return sections.filter((s) => s.tasks.length || (!this.filtering() && s.category !== null));
   });
+
+  readonly visibleTaskCount = computed(() =>
+    this.sections().reduce((sum, s) => sum + s.tasks.length, 0),
+  );
 
   private readonly activeMemberIds = computed(() => new Set(this.members().map((m) => m.id)));
 
@@ -77,6 +125,8 @@ export class TasksComponent {
       this.loading.set(false);
     }
   }
+
+  // --- Whose tasks -------------------------------------------------------------------------
 
   showAll(): void {
     this.personFilter.set('all');
@@ -130,45 +180,102 @@ export class TasksComponent {
     );
   }
 
-  owners(p_task: DTask): DTaskAssignment[] {
-    return this.sortedAssignments(p_task, 'owner');
+  // --- Categories ----------------------------------------------------------------------------
+
+  async addCategory(): Promise<void> {
+    const name = this.newCategoryName().trim();
+    if (!name) {
+      return;
+    }
+    const last = Math.max(0, ...this.categories().map((c) => c.sort_order));
+    await this.run(async () => {
+      await this.tasksService.createCategory(name, last + 1);
+      this.newCategoryName.set('');
+    });
   }
 
-  backups(p_task: DTask): DTaskAssignment[] {
-    return this.sortedAssignments(p_task, 'backup');
+  async renameCategory(p_category: DTaskCategory, event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const name = input.value.trim();
+    if (!name) {
+      input.value = p_category.name; // a category needs a name
+      return;
+    }
+    if (name !== p_category.name) {
+      await this.run(() => this.tasksService.renameCategory(p_category.id, name));
+    }
   }
 
-  isInactive(p_assignment: DTaskAssignment): boolean {
-    return !this.activeMemberIds().has(p_assignment.member_id);
+  async deleteCategory(p_section: DSection): Promise<void> {
+    const category = p_section.category!;
+    const count = p_section.allTasks.length;
+    const message = count
+      ? `Delete the category "${category.name}"? Its ${count} task(s) will move to Uncategorized.`
+      : `Delete the category "${category.name}"?`;
+    if (!confirm(message)) {
+      return;
+    }
+    await this.run(() => this.tasksService.removeCategory(category.id));
   }
 
-  /** Active members not already on this task. */
-  availableMembers(p_task: DTask) {
-    const assigned = new Set(p_task.assignments.map((a) => a.member_id));
-    return this.members().filter((p_member) => !assigned.has(p_member.id));
+  async moveCategory(p_index: number, p_delta: -1 | 1): Promise<void> {
+    const ids = this.categories().map((c) => c.id);
+    await this.run(() => this.tasksService.reorderCategories(swap(ids, p_index, p_delta)));
   }
 
-  draft(p_taskId: number): DAssignmentDraft {
-    return this.drafts()[p_taskId] ?? EMPTY_DRAFT;
+  // --- Tasks -----------------------------------------------------------------------------------
+
+  isExpanded(p_task: DTask): boolean {
+    return this.expanded().has(p_task.id);
   }
 
-  setDraft(p_taskId: number, p_changes: Partial<DAssignmentDraft>): void {
-    this.drafts.update((drafts) => ({
-      ...drafts,
-      [p_taskId]: { ...this.draft(p_taskId), ...p_changes },
-    }));
+  toggle(p_task: DTask): void {
+    this.expanded.update((set) => {
+      const next = new Set(set);
+      next.has(p_task.id) ? next.delete(p_task.id) : next.add(p_task.id);
+      return next;
+    });
   }
 
-  async addTask(): Promise<void> {
-    const title = this.newTitle().trim();
+  newTaskTitle(p_section: DSection): string {
+    return this.newTaskTitles()[p_section.key] ?? '';
+  }
+
+  setNewTaskTitle(p_section: DSection, p_value: string): void {
+    this.newTaskTitles.update((titles) => ({ ...titles, [p_section.key]: p_value }));
+  }
+
+  async addTask(p_section: DSection): Promise<void> {
+    const title = this.newTaskTitle(p_section).trim();
     if (!title) {
       return;
     }
+    const last = Math.max(0, ...p_section.allTasks.map((t) => t.sort_order));
     await this.run(async () => {
-      await this.tasksService.createTask(title, this.newNotes().trim() || null);
-      this.newTitle.set('');
-      this.newNotes.set('');
+      await this.tasksService.createTask({
+        title,
+        notes: null,
+        category_id: p_section.category?.id ?? null,
+        sort_order: last + 1,
+      });
+      this.setNewTaskTitle(p_section, '');
     });
+  }
+
+  async moveTask(p_section: DSection, p_index: number, p_delta: -1 | 1): Promise<void> {
+    const ids = p_section.allTasks.map((t) => t.id);
+    await this.run(() => this.tasksService.reorderTasks(swap(ids, p_index, p_delta)));
+  }
+
+  /** Moves the task to the end of another category. */
+  async setCategory(p_task: DTask, event: Event): Promise<void> {
+    const value = (event.target as HTMLSelectElement).value;
+    const categoryId = value ? Number(value) : null;
+    const target = this.sections().find((s) => (s.category?.id ?? null) === categoryId);
+    const last = Math.max(0, ...(target?.allTasks ?? []).map((t) => t.sort_order));
+    await this.run(() =>
+      this.tasksService.updateTask(p_task.id, { category_id: categoryId, sort_order: last + 1 }),
+    );
   }
 
   async renameTask(p_task: DTask, event: Event): Promise<void> {
@@ -199,6 +306,37 @@ export class TasksComponent {
       return;
     }
     await this.run(() => this.tasksService.removeTask(p_task.id));
+  }
+
+  // --- People on a task ----------------------------------------------------------------------
+
+  owners(p_task: DTask): DTaskAssignment[] {
+    return this.sortedAssignments(p_task, 'owner');
+  }
+
+  backups(p_task: DTask): DTaskAssignment[] {
+    return this.sortedAssignments(p_task, 'backup');
+  }
+
+  isInactive(p_assignment: DTaskAssignment): boolean {
+    return !this.activeMemberIds().has(p_assignment.member_id);
+  }
+
+  /** Active members not already on this task, grouped by rank (R4 first - most tasks go to them). */
+  availableMembersByRank(p_task: DTask) {
+    const assigned = new Set(p_task.assignments.map((a) => a.member_id));
+    return groupByRank(this.members().filter((p_member) => !assigned.has(p_member.id)));
+  }
+
+  draft(p_taskId: number): DAssignmentDraft {
+    return this.drafts()[p_taskId] ?? EMPTY_DRAFT;
+  }
+
+  setDraft(p_taskId: number, p_changes: Partial<DAssignmentDraft>): void {
+    this.drafts.update((drafts) => ({
+      ...drafts,
+      [p_taskId]: { ...this.draft(p_taskId), ...p_changes },
+    }));
   }
 
   async addAssignment(p_task: DTask): Promise<void> {
@@ -255,11 +393,47 @@ export class TasksComponent {
   }
 
   private async refresh(): Promise<void> {
-    this.tasks.set(await this.tasksService.list());
+    const [tasks, categories] = await Promise.all([
+      this.tasksService.list(),
+      this.tasksService.listCategories(),
+    ]);
+    this.tasks.set(tasks);
+    this.categories.set(categories);
   }
 
   private showError(error: unknown): void {
     console.error(error);
     this.error.set(error instanceof Error ? error.message : 'Something went wrong.');
   }
+}
+
+interface DMemberOption {
+  id: number;
+  name: string;
+  gameId: number | null;
+  rank: string;
+}
+
+/** Highest rank first (R5, R4, R3 ...), names alphabetical within a rank. */
+function groupByRank(p_members: DMemberOption[]): { rank: string; members: DMemberOption[] }[] {
+  const ranks = [...new Set(p_members.map((m) => m.rank || 'No rank'))].sort((a, b) =>
+    b.localeCompare(a),
+  );
+  return ranks.map((rank) => ({
+    rank,
+    members: p_members
+      .filter((m) => (m.rank || 'No rank') === rank)
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  }));
+}
+
+/** Copy of `p_ids` with the item at `p_index` moved one step up (-1) or down (1). */
+function swap(p_ids: number[], p_index: number, p_delta: -1 | 1): number[] {
+  const ids = [...p_ids];
+  const other = p_index + p_delta;
+  if (other < 0 || other >= ids.length) {
+    return ids;
+  }
+  [ids[p_index], ids[other]] = [ids[other], ids[p_index]];
+  return ids;
 }

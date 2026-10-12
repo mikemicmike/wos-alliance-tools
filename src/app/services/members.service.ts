@@ -124,11 +124,11 @@ export class MembersService {
     return data.map(sortHistory);
   }
 
-  /** Active members for pickers (name + game ID only). */
+  /** Active members for pickers (name, game ID, rank). */
   async listActiveNames() {
     const { data, error } = await this.supabase
       .from('members')
-      .select('id, name, gameId, statuses!inner(is_active)')
+      .select('id, name, gameId, rank, statuses!inner(is_active)')
       .eq('statuses.is_active', true)
       .order('name');
 

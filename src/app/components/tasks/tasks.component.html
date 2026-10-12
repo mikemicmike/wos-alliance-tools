@@ -43,9 +43,13 @@
             (change)="showPerson($event)">
       <option value=""
               [selected]="personFilter() === 'all' || personFilter() === 'me'">Someone else…</option>
-      @for (member of members(); track member.id) {
-      <option [value]="member.id"
-              [selected]="personFilter() === member.id">{{ member.name }}</option>
+      @for (group of membersByRank(); track group.rank) {
+      <optgroup [label]="group.rank">
+        @for (member of group.members; track member.id) {
+        <option [value]="member.id"
+                [selected]="personFilter() === member.id">{{ member.name }}</option>
+        }
+      </optgroup>
       }
     </select>
 
@@ -72,8 +76,12 @@
             [disabled]="busy()"
             (change)="linkMe($event)">
       <option value="">Pick yourself…</option>
-      @for (member of members(); track member.id) {
-      <option [value]="member.id">{{ member.name }}</option>
+      @for (group of membersByRank(); track group.rank) {
+      <optgroup [label]="group.rank">
+        @for (member of group.members; track member.id) {
+        <option [value]="member.id">{{ member.name }}</option>
+        }
+      </optgroup>
       }
     </select>
     <button type="button"
@@ -82,72 +90,136 @@
   </div>
   }
 
-  <!-- New task -->
-  <section class="card border-0 shadow-sm mb-3">
-    <div class="card-body">
-      <form class="row g-2 align-items-end"
-            (submit)="$event.preventDefault(); addTask()">
-        <div class="col-12 col-md-4">
-          <label for="new-task-title"
-                 class="form-label fw-semibold small">New task</label>
-          <input id="new-task-title"
-                 class="form-control"
-                 placeholder="e.g. Forts Signup"
-                 [value]="newTitle()"
-                 (input)="newTitle.set($any($event.target).value)" />
-        </div>
-        <div class="col-12 col-md">
-          <label for="new-task-notes"
-                 class="form-label fw-semibold small">Notes</label>
-          <input id="new-task-notes"
-                 class="form-control"
-                 placeholder="Optional"
-                 [value]="newNotes()"
-                 (input)="newNotes.set($any($event.target).value)" />
-        </div>
-        <div class="col-12 col-md-auto">
-          <button type="submit"
-                  class="btn btn-primary w-100"
-                  [disabled]="busy() || !newTitle().trim()">
-            Add task
-          </button>
-        </div>
-      </form>
-    </div>
-  </section>
+  @if (filtering()) {
+  <div class="small text-body-secondary mb-2">
+    Showing {{ visibleTaskCount() }} matching task(s). Clear the search / show all tasks to reorder.
+  </div>
+  }
 
-  <section class="row g-3">
-    @for (task of filteredTasks(); track task.id) {
-    @let ownerList = owners(task);
-    <div class="col-12 col-xl-6">
-      <article class="card border-0 shadow-sm h-100">
-        <div class="card-body">
-          <div class="d-flex align-items-start gap-2 mb-2">
-            <input class="form-control form-control-lg fw-semibold task-title"
-                   aria-label="Task title"
-                   [value]="task.title"
-                   (change)="renameTask(task, $event)" />
+  <!-- One card per category, tasks listed in order -->
+  @for (section of sections(); track section.key; let sectionIndex = $index) {
+  <section class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-body d-flex align-items-center gap-2">
+      @if (section.category; as category) {
+      @if (!filtering()) {
+      <div class="btn-group btn-group-sm">
+        <button type="button"
+                class="btn btn-outline-secondary"
+                [attr.aria-label]="'Move ' + category.name + ' up'"
+                [disabled]="busy() || sectionIndex === 0"
+                (click)="moveCategory(sectionIndex, -1)">▲</button>
+        <button type="button"
+                class="btn btn-outline-secondary"
+                [attr.aria-label]="'Move ' + category.name + ' down'"
+                [disabled]="busy() || sectionIndex === categories().length - 1"
+                (click)="moveCategory(sectionIndex, 1)">▼</button>
+      </div>
+      }
+      <input class="form-control fw-semibold category-name"
+             aria-label="Category name"
+             [value]="category.name"
+             (change)="renameCategory(category, $event)" />
+      <span class="badge text-bg-light border">{{ section.allTasks.length }}</span>
+      <button type="button"
+              class="btn btn-sm btn-outline-danger ms-auto"
+              [disabled]="busy()"
+              (click)="deleteCategory(section)">Delete category</button>
+      } @else {
+      <h2 class="h6 mb-0 text-body-secondary">Uncategorized</h2>
+      <span class="badge text-bg-light border">{{ section.allTasks.length }}</span>
+      }
+    </div>
+
+    <ul class="list-group list-group-flush">
+      @for (task of section.tasks; track task.id) {
+      @let position = section.allTasks.indexOf(task);
+      @let ownerList = owners(task);
+      @let backupList = backups(task);
+      @let open = isExpanded(task);
+      <li class="list-group-item task-row"
+          [class.needs-owner]="!ownerList.length"
+          [class.needs-backup]="ownerList.length && !backupList.length">
+        <!-- Clicking anywhere on the row opens it; the chevron is the keyboard / screen reader toggle -->
+        <div class="d-flex flex-wrap align-items-center gap-2 task-summary"
+             (click)="toggle(task)">
+          <span class="task-number">{{ position + 1 }}</span>
+          @if (!filtering()) {
+          <div class="btn-group btn-group-sm"
+               (click)="$event.stopPropagation()">
             <button type="button"
-                    class="btn btn-sm btn-outline-danger mt-2"
-                    title="Delete task"
-                    [disabled]="busy()"
-                    (click)="deleteTask(task)">
-              Delete
-            </button>
+                    class="btn btn-outline-secondary py-0"
+                    [attr.aria-label]="'Move ' + task.title + ' up'"
+                    [disabled]="busy() || position === 0"
+                    (click)="moveTask(section, position, -1)">▲</button>
+            <button type="button"
+                    class="btn btn-outline-secondary py-0"
+                    [attr.aria-label]="'Move ' + task.title + ' down'"
+                    [disabled]="busy() || position === section.allTasks.length - 1"
+                    (click)="moveTask(section, position, 1)">▼</button>
+          </div>
+          }
+          <span class="fw-semibold task-title">{{ task.title }}</span>
+
+          <span class="small task-people">
+            <span class="text-body-secondary me-1">In charge:</span>
+            @for (person of ownerList; track person.id; let last = $last) {
+            <span [class.fw-bold]="person.member_id === filterMemberId()">{{ person.member.name }}</span>@if (!last) {, }
+            } @empty {
+            <span class="badge text-bg-danger">No one in charge</span>
+            }
+            <span class="text-body-secondary ms-2 me-1">Backup:</span>
+            @for (person of backupList; track person.id; let last = $last) {
+            <span [class.fw-bold]="person.member_id === filterMemberId()">{{ person.member.name }}</span>@if (!last) {, }
+            } @empty {
+            <span class="badge text-bg-warning">No backup</span>
+            }
+          </span>
+
+          <button type="button"
+                  class="btn btn-sm btn-link text-body-secondary text-decoration-none ms-auto chevron"
+                  [attr.aria-expanded]="open"
+                  [attr.aria-label]="(open ? 'Close ' : 'Edit ') + task.title"
+                  (click)="$event.stopPropagation(); toggle(task)">{{ open ? '▾' : '▸' }}</button>
+        </div>
+
+        @if (open) {
+        <div class="task-details mt-2">
+          <div class="row g-2 mb-2">
+            <div class="col-12 col-md-6">
+              <input class="form-control form-control-sm fw-semibold"
+                     aria-label="Task title"
+                     [value]="task.title"
+                     (change)="renameTask(task, $event)" />
+            </div>
+            <div class="col-8 col-md-4">
+              <select class="form-select form-select-sm"
+                      aria-label="Task category"
+                      [disabled]="busy()"
+                      (change)="setCategory(task, $event)">
+                <option value=""
+                        [selected]="task.category_id === null">Uncategorized</option>
+                @for (category of categories(); track category.id) {
+                <option [value]="category.id"
+                        [selected]="category.id === task.category_id">{{ category.name }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-4 col-md-2 text-end">
+              <button type="button"
+                      class="btn btn-sm btn-outline-danger"
+                      [disabled]="busy()"
+                      (click)="deleteTask(task)">Delete</button>
+            </div>
           </div>
 
-          @if (!ownerList.length) {
-          <div class="badge text-bg-warning mb-2">No one in charge</div>
-          }
-
-          <textarea class="form-control form-control-sm mb-3"
+          <textarea class="form-control form-control-sm mb-2"
                     rows="2"
                     placeholder="Task notes"
                     aria-label="Task notes"
                     [value]="task.notes ?? ''"
                     (change)="setTaskNotes(task, $event)"></textarea>
 
-          @for (section of [{ label: 'In charge', list: ownerList }, { label: 'Backups', list: backups(task) }]; track section.label) {
+          @for (section of [{ label: 'In charge', list: ownerList }, { label: 'Backups', list: backupList }]; track section.label) {
           <div class="small fw-semibold text-body-secondary mb-1">{{ section.label }}</div>
           @for (assignment of section.list; track assignment.id) {
           <div class="d-flex align-items-center gap-2 mb-1 assignee-row"
@@ -188,7 +260,7 @@
           <div class="mb-2"></div>
           }
 
-          <!-- Add a person -->
+          <!-- Add a person: ranks as sections, R4 first -->
           @let draftValue = draft(task.id);
           <div class="d-flex flex-wrap align-items-center gap-2 border-top pt-2">
             <select class="form-select form-select-sm w-auto"
@@ -196,9 +268,13 @@
                     (change)="setDraft(task.id, { memberId: $any($event.target).value ? +$any($event.target).value : null })">
               <option value=""
                       [selected]="draftValue.memberId === null">Add person…</option>
-              @for (member of availableMembers(task); track member.id) {
-              <option [value]="member.id"
-                      [selected]="member.id === draftValue.memberId">{{ member.name }}</option>
+              @for (group of availableMembersByRank(task); track group.rank) {
+              <optgroup [label]="group.rank">
+                @for (member of group.members; track member.id) {
+                <option [value]="member.id"
+                        [selected]="member.id === draftValue.memberId">{{ member.name }}</option>
+                }
+              </optgroup>
               }
             </select>
             <select class="form-select form-select-sm w-auto"
@@ -223,19 +299,51 @@
             </button>
           </div>
         </div>
-      </article>
-    </div>
-    } @empty {
-    <div class="col-12 text-center text-body-secondary py-4">
-      @if (filterMemberId() !== null && !search()) {
-      {{ memberName(filterMemberId()) }} isn't on any tasks.
-      } @else if (tasks().length) {
-      No tasks match your search.
-      } @else {
-      No tasks yet - add the first one above.
+        }
+      </li>
+      } @empty {
+      <li class="list-group-item small text-body-tertiary">No tasks in this category yet.</li>
       }
-    </div>
-    }
+
+      @if (!filtering()) {
+      <li class="list-group-item">
+        <form class="d-flex gap-2"
+              (submit)="$event.preventDefault(); addTask(section)">
+          <input class="form-control form-control-sm"
+                 [placeholder]="'Add a task' + (section.category ? ' to ' + section.category.name : '') + '…'"
+                 [attr.aria-label]="'New task' + (section.category ? ' in ' + section.category.name : '')"
+                 [value]="newTaskTitle(section)"
+                 (input)="setNewTaskTitle(section, $any($event.target).value)" />
+          <button type="submit"
+                  class="btn btn-sm btn-outline-primary text-nowrap"
+                  [disabled]="busy() || !newTaskTitle(section).trim()">Add task</button>
+        </form>
+      </li>
+      }
+    </ul>
   </section>
+  } @empty {
+  <div class="text-center text-body-secondary py-4">
+    @if (filterMemberId() !== null && !search()) {
+    {{ memberName(filterMemberId()) }} isn't on any tasks.
+    } @else {
+    No tasks match your search.
+    }
+  </div>
+  }
+
+  @if (!filtering()) {
+  <form class="d-flex gap-2 new-category"
+        (submit)="$event.preventDefault(); addCategory()">
+    <input class="form-control"
+           placeholder="New category, e.g. Forts"
+           aria-label="New category"
+           [value]="newCategoryName()"
+           (input)="newCategoryName.set($any($event.target).value)" />
+    <button type="submit"
+            class="btn btn-outline-primary text-nowrap"
+            [disabled]="busy() || !newCategoryName().trim()">Add category</button>
+  </form>
+  }
 </main>
 }

@@ -13,13 +13,24 @@ type ProfileStatus = 'Pending' | 'Approved' | 'Rejected';
 export class UsersComponent {
   private readonly userProfilesService = inject(UserProfilesService);
   private readonly membersService = inject(MembersService);
-  private readonly currentUser = inject(SupabaseService).user;
+  private readonly supabaseService = inject(SupabaseService);
+  private readonly currentUser = this.supabaseService.user;
 
   readonly loading = signal(true);
   readonly busyId = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly profiles = signal<DUserProfile[]>([]);
-  private readonly memberNames = signal(new Map<number, string>());
+  readonly members = signal<{ id: number; name: string }[]>([]);
+
+  /** member id -> display name of the login it's linked to */
+  private readonly linkedBy = computed(
+    () =>
+      new Map(
+        this.profiles()
+          .filter((p) => p.member_id != null)
+          .map((p) => [p.member_id!, p.display_name || '(no name)']),
+      ),
+  );
 
   /** Pending sign-ups first, then by name. */
   readonly sortedProfiles = computed(() => {
@@ -43,21 +54,29 @@ export class UsersComponent {
         : 'Pending';
   }
 
-  /** Name of the member this login is linked to (inactive ones show as #id). */
-  linkedMember(p_profile: DUserProfile): string | null {
+  /** True when the linked member is no longer active (so it's not in the dropdown list). */
+  linkedToInactive(p_profile: DUserProfile): boolean {
     const id = p_profile.member_id;
-    return id == null ? null : (this.memberNames().get(id) ?? `#${id}`);
+    return id != null && !this.members().some((m) => m.id === id);
   }
 
-  async unlinkMember(p_profile: DUserProfile): Promise<void> {
-    if (
-      !confirm(
-        `Unlink ${p_profile.display_name || 'this user'} from ${this.linkedMember(p_profile)}?`,
-      )
-    ) {
+  /** Who else already has this member, so the dropdown can grey it out. */
+  takenBy(p_memberId: number, p_profile: DUserProfile): string | null {
+    return p_profile.member_id === p_memberId ? null : (this.linkedBy().get(p_memberId) ?? null);
+  }
+
+  async setMember(p_profile: DUserProfile, event: Event): Promise<void> {
+    const select = event.target as HTMLSelectElement;
+    const memberId = select.value ? Number(select.value) : null;
+    if (memberId === p_profile.member_id) {
       return;
     }
-    await this.updateProfile(p_profile, { member_id: null });
+    const ok = await this.updateProfile(p_profile, { member_id: memberId });
+    if (!ok) {
+      select.value = String(p_profile.member_id ?? ''); // put the dropdown back
+    } else if (this.isSelf(p_profile)) {
+      await this.supabaseService.getProfile(); // so "My tasks" follows straight away
+    }
   }
 
   isSelf(p_profile: DUserProfile): boolean {
@@ -85,17 +104,25 @@ export class UsersComponent {
     await this.updateProfile(p_profile, { is_admin: p_admin });
   }
 
+  /** Returns whether the change was saved. */
   private async updateProfile(
     p_profile: DUserProfile,
-    p_changes: { is_approved?: boolean; is_admin?: boolean; member_id?: null },
-  ): Promise<void> {
+    p_changes: { is_approved?: boolean; is_admin?: boolean; member_id?: number | null },
+  ): Promise<boolean> {
     this.busyId.set(p_profile.id);
     this.error.set(null);
     try {
       const updated = await this.userProfilesService.update(p_profile.id, p_changes);
       this.profiles.update((profiles) => profiles.map((p) => (p.id === updated.id ? updated : p)));
+      return true;
     } catch (error) {
-      this.error.set(error instanceof Error ? error.message : 'Unable to update user.');
+      const message = error instanceof Error ? error.message : 'Unable to update user.';
+      this.error.set(
+        message.includes('user_profiles_member_id_key')
+          ? 'That member is already linked to another account.'
+          : message,
+      );
+      return false;
     } finally {
       this.busyId.set(null);
     }
@@ -108,7 +135,7 @@ export class UsersComponent {
         this.membersService.listActiveNames(),
       ]);
       this.profiles.set(profiles);
-      this.memberNames.set(new Map(members.map((m) => [m.id, m.name])));
+      this.members.set(members);
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'Unable to load users.');
     } finally {
