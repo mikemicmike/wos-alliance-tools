@@ -67,7 +67,8 @@ export class CalendarEventEditorComponent implements OnInit {
   readonly title = signal('');
   readonly notes = signal('');
   readonly color = signal('blue');
-  readonly allDay = signal(true);
+  /** Most events only need a date (and maybe a time); the end is opt-in. */
+  readonly showEnd = signal(false);
   readonly startDate = signal('');
   readonly startTime = signal('');
   readonly endDate = signal('');
@@ -80,6 +81,9 @@ export class CalendarEventEditorComponent implements OnInit {
   readonly shiftMinutes = signal(30);
   readonly shiftEventIds = signal<number[]>([]);
   readonly checkpoints = signal<DCheckpointDraft[]>([]);
+
+  /** No start time = all day. */
+  readonly allDay = computed(() => !this.startTime());
 
   readonly isNew = computed(() => !this.target().event);
   readonly occurrenceSkipped = computed(() => {
@@ -139,7 +143,7 @@ export class CalendarEventEditorComponent implements OnInit {
     this.title.set(event.title);
     this.notes.set(event.notes ?? '');
     this.color.set(event.color);
-    this.allDay.set(!event.start_time && !event.end_time);
+    this.showEnd.set(event.end_date !== event.start_date || !!event.end_time);
     this.startDate.set(event.start_date);
     this.startTime.set(event.start_time?.slice(0, 5) ?? '');
     this.endDate.set(event.end_date);
@@ -190,7 +194,7 @@ export class CalendarEventEditorComponent implements OnInit {
     const span =
       this.startDate() && this.endDate() ? daysBetween(this.startDate(), this.endDate()) : 0;
     this.set(this.startDate, p_value);
-    this.endDate.set(addDays(p_value, Math.max(0, span)));
+    this.endDate.set(this.showEnd() ? addDays(p_value, Math.max(0, span)) : p_value);
   }
 
   toggleShiftEvent(p_id: number, p_checked: boolean): void {
@@ -200,6 +204,21 @@ export class CalendarEventEditorComponent implements OnInit {
         ? [...this.shiftEventIds(), p_id]
         : this.shiftEventIds().filter((p_existing) => p_existing !== p_id),
     );
+  }
+
+  addEnd(): void {
+    this.showEnd.set(true);
+    if (!this.endDate()) {
+      this.endDate.set(this.startDate());
+    }
+    this.dirty.set(true);
+  }
+
+  removeEnd(): void {
+    this.showEnd.set(false);
+    this.endDate.set(this.startDate());
+    this.endTime.set('');
+    this.dirty.set(true);
   }
 
   addCheckpoint(): void {
@@ -249,9 +268,9 @@ export class CalendarEventEditorComponent implements OnInit {
           notes: this.notes().trim() || null,
           color: this.color(),
           start_date: this.startDate(),
-          start_time: allDay ? null : this.startTime() || null,
-          end_date: this.endDate(),
-          end_time: allDay ? null : this.endTime() || null,
+          start_time: allDay ? null : this.startTime(),
+          end_date: this.showEnd() ? this.endDate() : this.startDate(),
+          end_time: this.showEnd() && !allDay ? this.endTime() || null : null,
           repeat_every: this.repeat().every,
           repeat_unit: this.repeat().unit,
           repeat_until: this.repeat().every ? this.repeatUntil() || null : null,
@@ -303,13 +322,17 @@ export class CalendarEventEditorComponent implements OnInit {
     if (!this.title().trim()) {
       return 'Give the event a title.';
     }
-    if (!this.startDate() || !this.endDate()) {
-      return 'Pick a start and end date.';
+    if (!this.startDate()) {
+      return 'Pick a date.';
     }
-    if (this.endDate() < this.startDate()) {
+    if (this.showEnd() && !this.endDate()) {
+      return 'Pick an end date, or remove the end.';
+    }
+    if (this.showEnd() && this.endDate() < this.startDate()) {
       return 'The end date is before the start date.';
     }
     if (
+      this.showEnd() &&
       !this.allDay() &&
       this.endDate() === this.startDate() &&
       this.startTime() &&

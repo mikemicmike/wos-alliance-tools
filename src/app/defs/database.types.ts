@@ -549,26 +549,61 @@ export type Database = {
           },
         ]
       }
-      tasks: {
+      task_categories: {
         Row: {
           created_at: string
           id: number
-          notes: string | null
-          title: string
+          name: string
+          sort_order: number
         }
         Insert: {
           created_at?: string
           id?: number
-          notes?: string | null
-          title: string
+          name: string
+          sort_order?: number
         }
         Update: {
           created_at?: string
           id?: number
-          notes?: string | null
-          title?: string
+          name?: string
+          sort_order?: number
         }
         Relationships: []
+      }
+      tasks: {
+        Row: {
+          category_id: number | null
+          created_at: string
+          id: number
+          notes: string | null
+          sort_order: number
+          title: string
+        }
+        Insert: {
+          category_id?: number | null
+          created_at?: string
+          id?: number
+          notes?: string | null
+          sort_order?: number
+          title: string
+        }
+        Update: {
+          category_id?: number | null
+          created_at?: string
+          id?: number
+          notes?: string | null
+          sort_order?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "task_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_profiles: {
         Row: {
@@ -610,6 +645,11 @@ export type Database = {
       is_admin_user: { Args: never; Returns: boolean }
       is_approved_user: { Args: never; Returns: boolean }
       link_my_member: { Args: { p_member_id: number }; Returns: undefined }
+      reorder_task_categories: {
+        Args: { p_category_ids: number[] }
+        Returns: undefined
+      }
+      reorder_tasks: { Args: { p_task_ids: number[] }; Returns: undefined }
       save_calendar_event: {
         Args: { p_checkpoints: Json; p_event: Json }
         Returns: number

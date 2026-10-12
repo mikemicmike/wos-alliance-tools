@@ -36,9 +36,6 @@
   text-align: right;
 }
 
-.task-title {
-  min-width: 10rem;
-}
 
 .task-details {
   padding: 0.5rem 0.75rem;
@@ -69,15 +66,58 @@
   line-height: 1;
 }
 
-.add-people {
-  padding: 0 0.35rem;
-  margin-right: 0.25rem;
-  font-size: 0.75rem;
-  line-height: 1.2;
-}
 
 .picker-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
   gap: 0.15rem 0.75rem;
+}
+
+// One grid for the header and every row, so the columns line up across the whole list:
+// # | move | task | in charge | backup | toggle
+.task-grid {
+  display: grid;
+  grid-template-columns: 1.6rem 3.75rem minmax(14rem, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) 2rem;
+  align-items: center;
+  column-gap: 0.75rem;
+}
+
+.task-grid-header {
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--bs-secondary-color);
+  background-color: var(--bs-tertiary-bg);
+
+  // first header cell lines up with the step numbers
+  > :first-child {
+    text-align: right;
+  }
+}
+
+.add-people {
+  margin-left: 0.35rem;
+  padding: 0 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+// Phones: stack the people under the title instead of squeezing columns
+@media (max-width: 767.98px) {
+  .task-grid {
+    grid-template-columns: 1.6rem auto 1fr 2rem;
+    row-gap: 0.25rem;
+  }
+
+  .task-grid .task-people {
+    grid-column: 3 / 4;
+  }
+
+  .task-grid .chevron {
+    grid-row: 1;
+    grid-column: 4;
+  }
 }

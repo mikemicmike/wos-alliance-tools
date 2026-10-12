@@ -61,40 +61,30 @@
           </div>
         </div>
 
-        <!-- When -->
-        <div class="form-check mb-1">
-          <input id="event-all-day"
-                 type="checkbox"
-                 class="form-check-input"
-                 [checked]="allDay()"
-                 (change)="set(allDay, $any($event.target).checked)" />
-          <label for="event-all-day"
-                 class="form-check-label small">All day</label>
-        </div>
+        <!-- When: a date and an optional time; the end is opt-in -->
         <div class="row g-2 align-items-end mb-1">
           <div class="col-6 col-md-3">
             <label for="event-start-date"
-                   class="form-label small fw-semibold">Start</label>
+                   class="form-label small fw-semibold">Date</label>
             <input id="event-start-date"
                    type="date"
                    class="form-control"
                    [value]="startDate()"
                    (change)="startDateChanged($any($event.target).value)" />
           </div>
-          @if (!allDay()) {
           <div class="col-6 col-md-3">
             <label for="event-start-time"
-                   class="form-label small fw-semibold">Time (UTC)</label>
+                   class="form-label small fw-semibold">Time (UTC, optional)</label>
             <input id="event-start-time"
                    type="time"
                    class="form-control"
                    [value]="startTime()"
                    (change)="set(startTime, $any($event.target).value)" />
           </div>
-          }
+          @if (showEnd()) {
           <div class="col-6 col-md-3">
             <label for="event-end-date"
-                   class="form-label small fw-semibold">End</label>
+                   class="form-label small fw-semibold">Ends</label>
             <input id="event-end-date"
                    type="date"
                    class="form-control"
@@ -103,15 +93,33 @@
                    (change)="set(endDate, $any($event.target).value)" />
           </div>
           @if (!allDay()) {
-          <div class="col-6 col-md-3">
+          <div class="col-6 col-md-2">
             <label for="event-end-time"
-                   class="form-label small fw-semibold">Time (UTC)</label>
+                   class="form-label small fw-semibold">at (UTC)</label>
             <input id="event-end-time"
                    type="time"
                    class="form-control"
                    [value]="endTime()"
                    (change)="set(endTime, $any($event.target).value)" />
           </div>
+          }
+          <div class="col-12 col-md-1">
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    aria-label="Remove the end"
+                    title="Remove the end"
+                    (click)="removeEnd()">✕</button>
+          </div>
+          }
+        </div>
+        <div class="small text-body-secondary mb-2">
+          @if (allDay()) {
+          No time = all day.
+          }
+          @if (!showEnd()) {
+          <button type="button"
+                  class="btn btn-link btn-sm p-0 align-baseline"
+                  (click)="addEnd()">+ Add an end (time or multi-day)</button>
           }
         </div>
 
@@ -165,7 +173,7 @@
           @if (repeatMode() !== 'none') {
           <div class="col-6 col-md-3">
             <label for="event-repeat-until"
-                   class="form-label small fw-semibold">Until (optional)</label>
+                   class="form-label small fw-semibold">Stop repeating on (optional)</label>
             <input id="event-repeat-until"
                    type="date"
                    class="form-control"
