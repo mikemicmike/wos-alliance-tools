@@ -1,5 +1,4 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
 import { AlliancesService } from '../../services/alliances.service';
 
 @Component({
@@ -9,8 +8,6 @@ import { AlliancesService } from '../../services/alliances.service';
   styleUrl: './alliances.component.scss',
 })
 export class AlliancesComponent {
-  private readonly _route = inject(ActivatedRoute);
-  private readonly _router = inject(Router);
   private readonly _alliancesService = inject(AlliancesService);
 
   private alliances = signal<Awaited<ReturnType<AlliancesService['list']>>>([]);
@@ -38,10 +35,6 @@ export class AlliancesComponent {
     this.searchTerm.set(input.value);
   }
 
-  allianceClicked(p_alliance: string) {
-    // this._router.navigate(['members']);
-    console.log('TODO LATER');
-  }
   clearFilters(): void {
     this.searchTerm.set('');
   }

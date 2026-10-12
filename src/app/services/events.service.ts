@@ -67,12 +67,8 @@ export interface DDayPlan {
 }
 
 const TABLES = {
-  foundry: { event: 'foundries', participant: 'foundry_participants', fk: 'foundry_id' },
-  'canyon-clash': {
-    event: 'canyon_clashes',
-    participant: 'canyon_clash_participants',
-    fk: 'clash_id',
-  },
+  foundry: { event: 'foundries', participant: 'foundry_participants' },
+  'canyon-clash': { event: 'canyon_clashes', participant: 'canyon_clash_participants' },
 } as const;
 
 /**
@@ -144,19 +140,9 @@ export class EventsService {
     }
   }
 
-  /** Deletes the event and its participants. */
+  /** Deletes the event; its participants go with it (`on delete cascade`). */
   async removeEvent(p_kind: EventKind, p_id: number): Promise<void> {
-    const t = TABLES[p_kind];
-    const { error: participantsError } = await this.supabase
-      .from(t.participant)
-      .delete()
-      .eq(t.fk, p_id);
-
-    if (participantsError) {
-      throw new Error(participantsError.message);
-    }
-
-    const { error } = await this.supabase.from(t.event).delete().eq('id', p_id);
+    const { error } = await this.supabase.from(TABLES[p_kind].event).delete().eq('id', p_id);
 
     if (error) {
       throw new Error(error.message);
@@ -164,102 +150,19 @@ export class EventsService {
   }
 
   /**
-   * Applies the registration grid for one day: creates/updates/removes the legion events
-   * and syncs each event's participants. Writes are batched per event to keep the window
-   * for a half-saved day small.
+   * Applies the registration grid for one day: creates/updates/removes the legion events and
+   * syncs their participants. Runs as one database transaction (`save_event_day`, see
+   * supabase/migrations), so a failure saves nothing instead of leaving half a day behind.
    */
   async updateDay(p_kind: EventKind, p_plan: DDayPlan): Promise<void> {
-    const t = TABLES[p_kind];
-
-    for (const w_event of p_plan.events) {
-      if (!w_event.time) {
-        if (w_event.id) {
-          await this.removeEvent(p_kind, w_event.id);
-        }
-        continue;
-      }
-
-      let w_eventId = w_event.id;
-      if (w_eventId) {
-        await this.updateEvent(p_kind, w_eventId, {
-          time: w_event.time,
-          legion: w_event.legion,
-        });
-      } else {
-        const { data, error } = await this.supabase
-          .from(t.event)
-          .insert({ date: p_plan.date, time: w_event.time, legion: w_event.legion })
-          .select('id')
-          .single();
-        if (error) {
-          throw new Error(error.message);
-        }
-        w_eventId = data.id as number;
-      }
-
-      await this.syncParticipants(p_kind, w_eventId, w_event.participants);
-    }
-  }
-
-  private async syncParticipants(
-    p_kind: EventKind,
-    p_eventId: number,
-    p_wanted: DDayPlan['events'][number]['participants'],
-  ): Promise<void> {
-    const t = TABLES[p_kind];
-
-    const { data: current, error } = await this.supabase
-      .from(t.participant)
-      .select('id, member_id, is_substitute, power, registered')
-      .eq(t.fk, p_eventId);
+    const { error } = await this.supabase.rpc('save_event_day', {
+      p_kind,
+      p_date: p_plan.date,
+      p_events: p_plan.events,
+    });
 
     if (error) {
       throw new Error(error.message);
-    }
-
-    const toRemove = current.filter(
-      (p_current) => !p_wanted.some((p_wanted) => p_wanted.member_id === p_current.member_id),
-    );
-    const toInsert = p_wanted.filter(
-      (p_wanted) => !current.some((p_current) => p_current.member_id === p_wanted.member_id),
-    );
-
-    for (const w_current of current) {
-      const w_wanted = p_wanted.find((p_wanted) => p_wanted.member_id === w_current.member_id);
-      if (
-        w_wanted &&
-        (w_wanted.is_substitute !== w_current.is_substitute ||
-          w_wanted.power !== w_current.power ||
-          w_wanted.registered !== w_current.registered)
-      ) {
-        await this.updateParticipant(p_kind, w_current.id, {
-          is_substitute: w_wanted.is_substitute,
-          power: w_wanted.power,
-          registered: w_wanted.registered,
-        });
-      }
-    }
-
-    if (toInsert.length) {
-      const { error: insertError } = await this.supabase
-        .from(t.participant)
-        .insert(toInsert.map((p_participant) => ({ ...p_participant, [t.fk]: p_eventId })));
-      if (insertError) {
-        throw new Error(insertError.message);
-      }
-    }
-
-    if (toRemove.length) {
-      const { error: removeError } = await this.supabase
-        .from(t.participant)
-        .delete()
-        .in(
-          'id',
-          toRemove.map((p_current) => p_current.id),
-        );
-      if (removeError) {
-        throw new Error(removeError.message);
-      }
     }
   }
 

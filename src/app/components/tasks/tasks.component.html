@@ -1,0 +1,177 @@
+@if (loading()) {
+<div class="p-4 text-center">
+  <div class="spinner-border"></div>
+</div>
+} @else {
+<main class="container-fluid py-3">
+  <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+    <h1 class="h3 mb-0 me-auto">Tasks</h1>
+
+    <input type="search"
+           class="form-control w-auto"
+           placeholder="Search tasks or people"
+           aria-label="Search tasks"
+           [value]="search()"
+           (input)="search.set($any($event.target).value)" />
+  </div>
+
+  @if (error()) {
+  <div class="alert alert-danger">
+    {{ error() }}
+  </div>
+  }
+
+  <!-- New task -->
+  <section class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <form class="row g-2 align-items-end"
+            (submit)="$event.preventDefault(); addTask()">
+        <div class="col-12 col-md-4">
+          <label for="new-task-title"
+                 class="form-label fw-semibold small">New task</label>
+          <input id="new-task-title"
+                 class="form-control"
+                 placeholder="e.g. Bear trap rally lead"
+                 [value]="newTitle()"
+                 (input)="newTitle.set($any($event.target).value)" />
+        </div>
+        <div class="col-12 col-md">
+          <label for="new-task-notes"
+                 class="form-label fw-semibold small">Notes</label>
+          <input id="new-task-notes"
+                 class="form-control"
+                 placeholder="Optional"
+                 [value]="newNotes()"
+                 (input)="newNotes.set($any($event.target).value)" />
+        </div>
+        <div class="col-12 col-md-auto">
+          <button type="submit"
+                  class="btn btn-primary w-100"
+                  [disabled]="busy() || !newTitle().trim()">
+            Add task
+          </button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section class="row g-3">
+    @for (task of filteredTasks(); track task.id) {
+    @let ownerList = owners(task);
+    <div class="col-12 col-xl-6">
+      <article class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-start gap-2 mb-2">
+            <input class="form-control form-control-lg fw-semibold task-title"
+                   aria-label="Task title"
+                   [value]="task.title"
+                   (change)="renameTask(task, $event)" />
+            <button type="button"
+                    class="btn btn-sm btn-outline-danger mt-2"
+                    title="Delete task"
+                    [disabled]="busy()"
+                    (click)="deleteTask(task)">
+              Delete
+            </button>
+          </div>
+
+          @if (!ownerList.length) {
+          <div class="badge text-bg-warning mb-2">No one in charge</div>
+          }
+
+          <textarea class="form-control form-control-sm mb-3"
+                    rows="2"
+                    placeholder="Task notes"
+                    aria-label="Task notes"
+                    [value]="task.notes ?? ''"
+                    (change)="setTaskNotes(task, $event)"></textarea>
+
+          @for (section of [{ label: 'In charge', list: ownerList }, { label: 'Backups', list: backups(task) }]; track section.label) {
+          <div class="small fw-semibold text-body-secondary mb-1">{{ section.label }}</div>
+          @for (assignment of section.list; track assignment.id) {
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="fw-semibold text-nowrap assignee-name">
+              {{ assignment.member.name }}
+              @if (isInactive(assignment)) {
+              <span class="badge text-bg-secondary"
+                    title="No longer an active member">inactive</span>
+              }
+            </span>
+            <select class="form-select form-select-sm w-auto"
+                    [attr.aria-label]="assignment.member.name + ' role'"
+                    [disabled]="busy()"
+                    (change)="setRole(assignment, $event)">
+              <option value="owner"
+                      [selected]="assignment.role === 'owner'">In charge</option>
+              <option value="backup"
+                      [selected]="assignment.role === 'backup'">Backup</option>
+            </select>
+            <input class="form-control form-control-sm"
+                   placeholder="Note"
+                   [attr.aria-label]="assignment.member.name + ' note'"
+                   [value]="assignment.notes ?? ''"
+                   (change)="setAssignmentNotes(assignment, $event)" />
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    [attr.aria-label]="'Remove ' + assignment.member.name"
+                    title="Remove from task"
+                    [disabled]="busy()"
+                    (click)="removeAssignment(assignment)">
+              ✕
+            </button>
+          </div>
+          } @empty {
+          <div class="small text-body-tertiary mb-1">Nobody yet</div>
+          }
+          <div class="mb-2"></div>
+          }
+
+          <!-- Add a person -->
+          @let draftValue = draft(task.id);
+          <div class="d-flex flex-wrap align-items-center gap-2 border-top pt-2">
+            <select class="form-select form-select-sm w-auto"
+                    aria-label="Member to add"
+                    (change)="setDraft(task.id, { memberId: $any($event.target).value ? +$any($event.target).value : null })">
+              <option value=""
+                      [selected]="draftValue.memberId === null">Add person…</option>
+              @for (member of availableMembers(task); track member.id) {
+              <option [value]="member.id"
+                      [selected]="member.id === draftValue.memberId">{{ member.name }}</option>
+              }
+            </select>
+            <select class="form-select form-select-sm w-auto"
+                    aria-label="Role for new person"
+                    (change)="setDraft(task.id, { role: $any($event.target).value })">
+              <option value="owner"
+                      [selected]="draftValue.role === 'owner'">In charge</option>
+              <option value="backup"
+                      [selected]="draftValue.role === 'backup'">Backup</option>
+            </select>
+            <input class="form-control form-control-sm flex-grow-1 w-auto"
+                   placeholder="Note (optional)"
+                   aria-label="Note for new person"
+                   [value]="draftValue.notes"
+                   (input)="setDraft(task.id, { notes: $any($event.target).value })"
+                   (keydown.enter)="addAssignment(task)" />
+            <button type="button"
+                    class="btn btn-sm btn-primary"
+                    [disabled]="busy() || draftValue.memberId === null"
+                    (click)="addAssignment(task)">
+              Add
+            </button>
+          </div>
+        </div>
+      </article>
+    </div>
+    } @empty {
+    <div class="col-12 text-center text-body-secondary py-4">
+      @if (tasks().length) {
+      No tasks match your search.
+      } @else {
+      No tasks yet - add the first one above.
+      }
+    </div>
+    }
+  </section>
+</main>
+}

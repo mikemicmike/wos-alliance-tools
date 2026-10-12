@@ -1,10 +1,12 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, HostListener, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { injectEventKind, LEGIONS } from '../../defs/event-kind';
 import { tabDownColumn } from '../../defs/grid-keyboard';
+import { HasUnsavedChanges, warnBeforeUnload } from '../../guards/unsaved-changes.guard';
+import { SupabaseService } from '../../services/supabase.service';
 import { assignLegionSlots, DEvent, EventsService } from '../../services/events.service';
 import { MembersService } from '../../services/members.service';
 
@@ -31,6 +33,10 @@ interface DMemberRow {
   inactive: boolean;
   previousPower: number | null;
   previousPowerDate: string | null;
+  /** Last few recorded attendances for this event type before this date, newest first. */
+  recentAttendance: { date: string; showed: boolean }[];
+  /** Attendance over all recorded events of this type, e.g. "8/10". */
+  attendanceSummary: string | null;
   power: number | null;
   assignments: DAssignment[];
 }
@@ -41,11 +47,12 @@ interface DMemberRow {
   templateUrl: './event-manage-members.component.html',
   styleUrl: './event-manage-members.component.scss',
 })
-export class EventManageMembersComponent {
+export class EventManageMembersComponent implements HasUnsavedChanges {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly eventsService = inject(EventsService);
   private readonly membersService = inject(MembersService);
+  readonly isAdmin = inject(SupabaseService).isAdminUser;
 
   readonly config = injectEventKind();
 
@@ -95,6 +102,15 @@ export class EventManageMembersComponent {
     });
   }
 
+  hasUnsavedChanges(): boolean {
+    return this.dirty();
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  beforeUnload(event: BeforeUnloadEvent): void {
+    warnBeforeUnload(this, event);
+  }
+
   timeOptions(p_slot: DSlot): string[] {
     // Keep legacy/unknown times selectable so loading old data doesn't blank them out
     return p_slot.time && !this.config.times.includes(p_slot.time)
@@ -142,6 +158,19 @@ export class EventManageMembersComponent {
           .filter((p) => p.power != null && p.date < date)
           .sort((a, b) => b.date.localeCompare(a.date));
 
+        // History arrives newest first
+        const attendance = (
+          this.config.kind === 'foundry'
+            ? p_member.foundry_participants.map((p) => ({
+                date: p.foundries.date,
+                showed: p.showed_up,
+              }))
+            : p_member.canyon_clash_participants.map((p) => ({
+                date: p.canyon_clashes.date,
+                showed: p.showed_up,
+              }))
+        ).filter((p): p is { date: string; showed: boolean } => p.showed != null && p.date < date);
+
         return {
           memberId: p_member.id,
           gameId: p_member.gameId,
@@ -149,6 +178,10 @@ export class EventManageMembersComponent {
           inactive: false,
           previousPower: history[0]?.power ?? null,
           previousPowerDate: history[0]?.date ?? null,
+          recentAttendance: attendance.slice(0, 5),
+          attendanceSummary: attendance.length
+            ? `${attendance.filter((p) => p.showed).length}/${attendance.length}`
+            : null,
           power: null,
           assignments: [],
         };
@@ -164,6 +197,8 @@ export class EventManageMembersComponent {
             inactive: true,
             previousPower: null,
             previousPowerDate: null,
+            recentAttendance: [],
+            attendanceSummary: null,
             power: null,
             assignments: [],
           });
@@ -201,6 +236,7 @@ export class EventManageMembersComponent {
       (event.target as HTMLInputElement).value = this.date();
       return;
     }
+    this.dirty.set(false); // already confirmed, don't let the leave-guard ask again
     await this.router.navigate([this.config.path, 'manage-members', date], { replaceUrl: true });
   }
 
@@ -326,8 +362,7 @@ export class EventManageMembersComponent {
     } catch (error) {
       console.error(error);
       this.error.set(
-        (error instanceof Error ? error.message : 'Unable to save.') +
-          ' Some changes may have been saved - reload to see the current state.',
+        (error instanceof Error ? error.message : 'Unable to save.') + ' Nothing was saved.',
       );
     } finally {
       this.saving.set(false);
@@ -335,9 +370,7 @@ export class EventManageMembersComponent {
   }
 
   cancel(): void {
-    if (this.dirty() && !confirm('Discard your unsaved changes?')) {
-      return;
-    }
+    // The unsaved-changes guard asks for confirmation
     void this.router.navigate([this.config.path]);
   }
 

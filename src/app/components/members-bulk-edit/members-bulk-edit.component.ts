@@ -1,7 +1,8 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, HostListener, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { tabDownColumn } from '../../defs/grid-keyboard';
+import { HasUnsavedChanges, warnBeforeUnload } from '../../guards/unsaved-changes.guard';
 import { MemberLogService } from '../../services/member-log.service';
 import { DMemberUpdate, MembersService } from '../../services/members.service';
 
@@ -43,6 +44,8 @@ interface DRow {
   name: string;
   gameId: number | null;
   rank: string;
+  /** When power was last changed (from the member log), null if never. */
+  powerUpdatedAt: string | null;
   original: DStats;
   values: DStats;
 }
@@ -52,7 +55,7 @@ interface DRow {
   templateUrl: './members-bulk-edit.component.html',
   styleUrl: './members-bulk-edit.component.scss',
 })
-export class MembersBulkEditComponent {
+export class MembersBulkEditComponent implements HasUnsavedChanges {
   private readonly router = inject(Router);
   private readonly membersService = inject(MembersService);
   private readonly memberLogService = inject(MemberLogService);
@@ -91,6 +94,20 @@ export class MembersBulkEditComponent {
   /** Tab moves down a column (e.g. everyone's power) instead of across the row. */
   protected readonly gridKeydown = tabDownColumn;
 
+  hasUnsavedChanges(): boolean {
+    return this.changedRows().length > 0;
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  beforeUnload(event: BeforeUnloadEvent): void {
+    warnBeforeUnload(this, event);
+  }
+
+  /** Whole days since the given timestamp. */
+  daysAgo(p_timestamp: string): number {
+    return Math.floor((Date.now() - new Date(p_timestamp).getTime()) / 86_400_000);
+  }
+
   async ngOnInit(): Promise<void> {
     await this.loadData();
   }
@@ -111,6 +128,7 @@ export class MembersBulkEditComponent {
               name: p_member.name,
               gameId: p_member.gameId,
               rank: p_member.rank,
+              powerUpdatedAt: p_member.member_log[0]?.created_at ?? null,
               original: stats,
               values: { ...stats },
             };
@@ -214,9 +232,7 @@ export class MembersBulkEditComponent {
   }
 
   back(): void {
-    if (this.changedRows().length && !confirm('Discard your unsaved changes?')) {
-      return;
-    }
+    // The unsaved-changes guard asks for confirmation
     void this.router.navigate(['/members']);
   }
 }

@@ -1,0 +1,14 @@
+// Looks like a heading until you click into it
+.task-title {
+  border-color: transparent;
+  padding-left: 0.25rem;
+
+  &:hover,
+  &:focus {
+    border-color: var(--bs-border-color);
+  }
+}
+
+.assignee-name {
+  min-width: 8rem;
+}

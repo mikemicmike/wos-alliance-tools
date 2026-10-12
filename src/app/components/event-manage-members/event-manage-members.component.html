@@ -35,11 +35,15 @@
     @for (extra of extras(); track extra.id) {
     <div class="d-flex align-items-center gap-2 mb-1">
       <span>L{{ extra.legion }} · {{ extra.time || 'no time' }} · {{ extra.participants.length }} registrations</span>
+      @if (isAdmin()) {
       <button type="button"
               class="btn btn-sm btn-outline-danger"
               (click)="deleteExtra(extra)">
         Delete
       </button>
+      } @else {
+      <span class="small text-body-secondary">(an admin can delete it)</span>
+      }
     </div>
     }
   </div>
@@ -124,6 +128,8 @@
           <tr>
             <th rowspan="2">ID</th>
             <th rowspan="2">Member</th>
+            <th rowspan="2"
+                title="Recent {{ config.label }} attendance, newest first">Recent</th>
             <th rowspan="2">Previous Power</th>
             <th rowspan="2">Power</th>
 
@@ -170,6 +176,21 @@
               @if (member.inactive) {
               <span class="badge text-bg-secondary ms-1"
                     title="This member is no longer active but is registered on this date">inactive</span>
+              }
+            </td>
+
+            <td class="text-nowrap"
+                [title]="member.attendanceSummary ? 'Showed up ' + member.attendanceSummary + ' recorded ' + config.plural : 'No recorded attendance yet'">
+              @for (attendance of member.recentAttendance; track attendance.date) {
+              <span class="attendance-mark"
+                    [class.text-success]="attendance.showed"
+                    [class.text-danger]="!attendance.showed"
+                    [title]="attendance.date + (attendance.showed ? ' showed up' : ' no show')">{{ attendance.showed ? '✓' : '✗' }}</span>
+              }
+              @if (member.attendanceSummary) {
+              <span class="small text-body-secondary ms-1">{{ member.attendanceSummary }}</span>
+              } @else {
+              <span class="text-body-tertiary">—</span>
               }
             </td>
 
@@ -246,7 +267,7 @@
           </tr>
           } @empty {
           <tr>
-            <td colspan="10"
+            <td colspan="11"
                 class="text-center text-body-secondary py-4">
               No members match your search.
             </td>

@@ -13,7 +13,11 @@ import { EventListComponent } from './components/event-list/event-list.component
 import { EventManageMembersComponent } from './components/event-manage-members/event-manage-members.component';
 import { SignupComponent } from './components/signup/signup.component';
 import { MembersBulkEditComponent } from './components/members-bulk-edit/members-bulk-edit.component';
+import { UsersComponent } from './components/users/users.component';
+import { TasksComponent } from './components/tasks/tasks.component';
 import { EventKind } from './defs/event-kind';
+import { requireAdminGuard } from './guards/require-admin.guard';
+import { unsavedChangesGuard } from './guards/unsaved-changes.guard';
 
 /** List / day view / registration grid, shared by Foundry and Canyon Clash. */
 function eventRoutes(p_path: string, p_kind: EventKind): Routes {
@@ -21,11 +25,18 @@ function eventRoutes(p_path: string, p_kind: EventKind): Routes {
   const data = { kind: p_kind };
   return [
     { path: p_path, component: EventListComponent, canActivate, data },
-    { path: `${p_path}/manage/:date`, component: EventManageComponent, canActivate, data },
+    {
+      path: `${p_path}/manage/:date`,
+      component: EventManageComponent,
+      canActivate,
+      canDeactivate: [unsavedChangesGuard],
+      data,
+    },
     {
       path: `${p_path}/manage-members/:date`,
       component: EventManageMembersComponent,
       canActivate,
+      canDeactivate: [unsavedChangesGuard],
       data,
     },
   ];
@@ -53,7 +64,18 @@ export const routes: Routes = [
   {
     path: 'members/bulk-edit',
     component: MembersBulkEditComponent,
-    canActivate: [authGuard, requireApprovedUserProfileGuard],
+    canActivate: [authGuard, requireApprovedUserProfileGuard, requireAdminGuard],
+    canDeactivate: [unsavedChangesGuard],
+  },
+  {
+    path: 'users',
+    component: UsersComponent,
+    canActivate: [authGuard, requireApprovedUserProfileGuard, requireAdminGuard],
+  },
+  {
+    path: 'tasks',
+    component: TasksComponent,
+    canActivate: [authGuard, requireApprovedUserProfileGuard, requireAdminGuard],
   },
   {
     path: 'member/create',

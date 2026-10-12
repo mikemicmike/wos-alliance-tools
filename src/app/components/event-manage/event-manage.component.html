@@ -59,7 +59,11 @@
   @if (extras().length) {
   <div class="alert alert-warning">
     There are more {{ config.label }} records on this date than legions. The extra ones are shown last -
+    @if (isAdmin()) {
     delete whichever one shouldn't be there.
+    } @else {
+    ask an admin to delete whichever one shouldn't be there.
+    }
   </div>
   }
 
@@ -239,6 +243,7 @@
                       (click)="startEdit(event)">
                 Results &amp; attendance
               </button>
+              @if (isAdmin()) {
               <button class="btn btn-outline-danger"
                       type="button"
                       title="Delete this {{ config.label }} and its registrations"
@@ -246,6 +251,7 @@
                       (click)="deleteEvent(event)">
                 Delete
               </button>
+              }
               } @else {
               <button class="btn btn-outline-secondary"
                       type="button"

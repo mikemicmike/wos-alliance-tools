@@ -39,6 +39,20 @@
       Alliances
     </a>
 
+    @if (supabaseService.isAdminUser()) {
+    <a class="nav-link text-white-50"
+       routerLink="/tasks"
+       routerLinkActive="text-white">
+      Tasks
+    </a>
+
+    <a class="nav-link text-white-50"
+       routerLink="/users"
+       routerLinkActive="text-white">
+      Users
+    </a>
+    }
+
     <span class="navbar-divider"></span>
 
     <button type="button"

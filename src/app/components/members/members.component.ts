@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MembersService } from '../../services/members.service';
+import { SupabaseService } from '../../services/supabase.service';
 import { DecimalPipe } from '@angular/common';
 
 @Component({
@@ -13,6 +14,7 @@ export class MembersComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly membersService = inject(MembersService);
+  readonly isAdmin = inject(SupabaseService).isAdminUser;
 
   // Source state
   readonly searchTerm = signal('');

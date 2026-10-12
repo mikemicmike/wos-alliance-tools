@@ -94,6 +94,8 @@ export class SupabaseService {
   async getProfile() {
     await this.loadSession();
     const profile = await this.getCurrentUserProfile();
+    // Route guards call this on every navigation, which keeps isApprovedUser / isAdminUser fresh
+    this.userProfile.set(profile ?? null);
 
     return profile;
   }

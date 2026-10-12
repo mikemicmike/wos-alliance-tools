@@ -1,9 +1,11 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, HostListener, inject, signal } from '@angular/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DecimalPipe } from '@angular/common';
 
 import { injectEventKind } from '../../defs/event-kind';
+import { HasUnsavedChanges, warnBeforeUnload } from '../../guards/unsaved-changes.guard';
+import { SupabaseService } from '../../services/supabase.service';
 import { downloadFile, rosterCsv, rosterText } from '../../defs/event-export';
 import {
   assignLegionSlots,
@@ -34,10 +36,11 @@ type EventForm = FormGroup<{
   templateUrl: './event-manage.component.html',
   styleUrl: './event-manage.component.scss',
 })
-export class EventManageComponent {
+export class EventManageComponent implements HasUnsavedChanges {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly eventsService = inject(EventsService);
+  readonly isAdmin = inject(SupabaseService).isAdminUser;
 
   readonly config = injectEventKind();
   readonly date = this.route.snapshot.paramMap.get('date')?.trim() ?? '';
@@ -60,6 +63,16 @@ export class EventManageComponent {
 
   readonly editingId = signal<number | null>(null);
   editForm: EventForm | null = null;
+
+  /** An open "Results & attendance" edit with changes in it. */
+  hasUnsavedChanges(): boolean {
+    return this.editingId() !== null && !!this.editForm?.dirty;
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  beforeUnload(event: BeforeUnloadEvent): void {
+    warnBeforeUnload(this, event);
+  }
 
   counts(p_event: DEvent) {
     const participants = p_event.participants;

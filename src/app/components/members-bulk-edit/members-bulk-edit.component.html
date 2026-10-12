@@ -31,7 +31,7 @@
     <div class="card-header bg-body py-3 d-flex flex-wrap align-items-center gap-3">
       <div class="small text-body-secondary me-auto">
         Power is in millions as written in game, e.g. <strong>1906</strong> for 1.9B.
-        Tab moves down a column.
+        Tab moves down a column. Power not updated in over 2 weeks is highlighted.
       </div>
 
       <input type="search"
@@ -53,6 +53,11 @@
             @if (!column.group) {
             <th rowspan="2"
                 class="text-center">{{ column.label }}</th>
+            }
+            @if (column.key === 'power') {
+            <th rowspan="2"
+                class="text-center"
+                title="When power was last changed">Updated</th>
             }
             }
             @for (group of groups; track group) {
@@ -92,11 +97,26 @@
                      [value]="row.values[column.key]"
                      (change)="valueChanged(row.id, column.key, $event)" />
             </td>
+            @if (column.key === 'power') {
+            <td class="text-nowrap small text-center">
+              @if (row.powerUpdatedAt) {
+              @let days = daysAgo(row.powerUpdatedAt);
+              <span [class.text-warning-emphasis]="days > 14"
+                    [class.fw-semibold]="days > 14"
+                    [title]="row.powerUpdatedAt">
+                {{ days === 0 ? 'today' : days + 'd ago' }}
+              </span>
+              } @else {
+              <span class="text-body-tertiary"
+                    title="No power change recorded">never</span>
+              }
+            </td>
+            }
             }
           </tr>
           } @empty {
           <tr>
-            <td colspan="11"
+            <td colspan="12"
                 class="text-center text-body-secondary py-4">
               No members match your search.
             </td>

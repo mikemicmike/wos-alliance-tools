@@ -109,8 +109,8 @@ export class MembersService {
           gameId,
           power,
           statuses!inner(is_active),
-          canyon_clash_participants(power, canyon_clashes(date)),
-          foundry_participants(power, foundries(date))
+          canyon_clash_participants(power, showed_up, canyon_clashes(date)),
+          foundry_participants(power, showed_up, foundries(date))
         `,
       )
       // !inner makes this filter the members themselves, not just the embedded status
@@ -122,6 +122,21 @@ export class MembersService {
     }
 
     return data.map(sortHistory);
+  }
+
+  /** Active members for pickers (name + game ID only). */
+  async listActiveNames() {
+    const { data, error } = await this.supabase
+      .from('members')
+      .select('id, name, gameId, statuses!inner(is_active)')
+      .eq('statuses.is_active', true)
+      .order('name');
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return data;
   }
 
   /** Active members with just the stats the bulk editor changes. */
@@ -142,10 +157,15 @@ export class MembersService {
           lancer_tier,
           marksman_fc_level,
           marksman_tier,
-          statuses!inner(is_active)
+          statuses!inner(is_active),
+          member_log(type, created_at)
         `,
       )
       .eq('statuses.is_active', true)
+      // Only the latest power change per member, for "last updated"
+      .eq('member_log.type', 'power')
+      .order('created_at', { referencedTable: 'member_log', ascending: false })
+      .limit(1, { referencedTable: 'member_log' })
       .order('name');
 
     if (error) {

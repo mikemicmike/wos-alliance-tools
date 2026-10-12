@@ -18,7 +18,7 @@
           <input id="alliance-search"
                  type="search"
                  class="form-control"
-                 placeholder="Search by ID, name, role"
+                 placeholder="Search by tag or name"
                  [value]="searchTerm()"
                  (input)="setSearchTerm($event)" />
         </div>
@@ -30,11 +30,6 @@
                     class="btn btn-outline-secondary"
                     (click)="clearFilters()">
               Clear
-            </button>
-            <button type="button"
-                    class="btn btn-primary"
-                    title="Connect this button to your add-alliance form">
-              Add Alliance
             </button>
           </div>
         </div>
@@ -50,7 +45,6 @@
             <tr>
               <th scope="col">Tag</th>
               <th scope="col">Name</th>
-              <th scope="col">Active Members</th>
             </tr>
           </thead>
 
@@ -59,8 +53,7 @@
             alliance of filteredAlliances();
             track alliance.tag
             ) {
-            <tr class="clickable"
-                (click)="allianceClicked(alliance.tag)">
+            <tr>
               <td class="text-body-secondary">
                 <h5>
                   <span class="badge"
@@ -82,22 +75,17 @@
                 </div>
               </td>
 
-              <td>
-                <span class="badge rounded-pill text-bg-success">
-                  <!-- {{ alliance.memberCount }} -->
-                </span>
-              </td>
             </tr>
             } @empty {
             <tr>
-              <td colspan="8">
+              <td colspan="2">
                 <div class="empty-state text-center">
                   <h2 class="h5">
                     No alliances found
                   </h2>
 
                   <p class="text-body-secondary mb-3">
-                    Try changing your search or status filter.
+                    Try changing your search.
                   </p>
 
                   <button type="button"
