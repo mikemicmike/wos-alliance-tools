@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 
 import { MembersService } from '../../services/members.service';
+import { SupabaseService } from '../../services/supabase.service';
 import { DTask, DTaskAssignment, TaskRole, TasksService } from '../../services/tasks.service';
 
 interface DAssignmentDraft {
@@ -11,6 +12,9 @@ interface DAssignmentDraft {
 
 const EMPTY_DRAFT: DAssignmentDraft = { memberId: null, role: 'owner', notes: '' };
 
+/** 'all', 'me' (the member linked to this login) or a member id. */
+type PersonFilter = 'all' | 'me' | number;
+
 @Component({
   selector: 'app-tasks',
   templateUrl: './tasks.component.html',
@@ -19,6 +23,7 @@ const EMPTY_DRAFT: DAssignmentDraft = { memberId: null, role: 'owner', notes: ''
 export class TasksComponent {
   private readonly tasksService = inject(TasksService);
   private readonly membersService = inject(MembersService);
+  private readonly supabaseService = inject(SupabaseService);
 
   readonly loading = signal(true);
   readonly busy = signal(false);
@@ -27,6 +32,18 @@ export class TasksComponent {
   readonly tasks = signal<DTask[]>([]);
   readonly members = signal<{ id: number; name: string; gameId: number | null }[]>([]);
   readonly search = signal('');
+  readonly personFilter = signal<PersonFilter>('all');
+  /** Showing the "which member are you?" picker. */
+  readonly linking = signal(false);
+
+  readonly linkedMemberId = this.supabaseService.linkedMemberId;
+  readonly linkedMemberName = computed(() => this.memberName(this.linkedMemberId()));
+
+  /** The member whose tasks are shown, or null for everyone. */
+  readonly filterMemberId = computed(() => {
+    const filter = this.personFilter();
+    return filter === 'all' ? null : filter === 'me' ? this.linkedMemberId() : filter;
+  });
 
   readonly newTitle = signal('');
   readonly newNotes = signal('');
@@ -36,13 +53,15 @@ export class TasksComponent {
 
   readonly filteredTasks = computed(() => {
     const query = this.search().trim().toLowerCase();
+    const memberId = this.filterMemberId();
     return this.tasks().filter(
       (p_task) =>
-        !query ||
-        [p_task.title, p_task.notes, ...p_task.assignments.map((a) => a.member.name)]
-          .join(' ')
-          .toLowerCase()
-          .includes(query),
+        (memberId === null || p_task.assignments.some((a) => a.member_id === memberId)) &&
+        (!query ||
+          [p_task.title, p_task.notes, ...p_task.assignments.map((a) => a.member.name)]
+            .join(' ')
+            .toLowerCase()
+            .includes(query)),
     );
   });
 
@@ -57,6 +76,58 @@ export class TasksComponent {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  showAll(): void {
+    this.personFilter.set('all');
+    this.linking.set(false);
+  }
+
+  showMine(): void {
+    this.personFilter.set('me');
+    // Not linked yet: ask which member they are
+    this.linking.set(this.linkedMemberId() === null);
+  }
+
+  showPerson(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    this.personFilter.set(value ? Number(value) : 'all');
+    this.linking.set(false);
+  }
+
+  async linkMe(event: Event): Promise<void> {
+    const value = (event.target as HTMLSelectElement).value;
+    if (!value) {
+      return;
+    }
+    await this.run(async () => {
+      await this.supabaseService.linkMyMember(Number(value));
+      this.linking.set(false);
+      this.personFilter.set('me');
+    });
+  }
+
+  async unlinkMe(): Promise<void> {
+    if (!confirm(`Unlink your login from ${this.linkedMemberName()}?`)) {
+      return;
+    }
+    await this.run(async () => {
+      await this.supabaseService.linkMyMember(null);
+      this.personFilter.set('all');
+    });
+  }
+
+  memberName(p_memberId: number | null): string {
+    if (p_memberId === null) {
+      return '';
+    }
+    return (
+      this.members().find((m) => m.id === p_memberId)?.name ??
+      this.tasks()
+        .flatMap((t) => t.assignments)
+        .find((a) => a.member_id === p_memberId)?.member.name ??
+      `#${p_memberId}`
+    );
   }
 
   owners(p_task: DTask): DTaskAssignment[] {

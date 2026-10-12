@@ -53,6 +53,128 @@ export type Database = {
         }
         Relationships: []
       }
+      calendar_event_checkpoints: {
+        Row: {
+          created_at: string
+          day_offset: number
+          event_id: number
+          id: number
+          notes: string | null
+          task_id: number | null
+          time: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          day_offset?: number
+          event_id: number
+          id?: number
+          notes?: string | null
+          task_id?: number | null
+          time?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string
+          day_offset?: number
+          event_id?: number
+          id?: number
+          notes?: string | null
+          task_id?: number | null
+          time?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_event_checkpoints_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_event_checkpoints_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_event_skips: {
+        Row: {
+          event_id: number
+          occurrence_date: string
+        }
+        Insert: {
+          event_id: number
+          occurrence_date: string
+        }
+        Update: {
+          event_id?: number
+          occurrence_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_event_skips_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_events: {
+        Row: {
+          color: string
+          created_at: string
+          end_date: string
+          end_time: string | null
+          id: number
+          notes: string | null
+          repeat_every: number | null
+          repeat_unit: string
+          repeat_until: string | null
+          shift_if_same_day_as: number[]
+          shift_minutes: number | null
+          start_date: string
+          start_time: string | null
+          title: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          end_date: string
+          end_time?: string | null
+          id?: number
+          notes?: string | null
+          repeat_every?: number | null
+          repeat_unit?: string
+          repeat_until?: string | null
+          shift_if_same_day_as?: number[]
+          shift_minutes?: number | null
+          start_date: string
+          start_time?: string | null
+          title: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          end_date?: string
+          end_time?: string | null
+          id?: number
+          notes?: string | null
+          repeat_every?: number | null
+          repeat_unit?: string
+          repeat_until?: string | null
+          shift_if_same_day_as?: number[]
+          shift_minutes?: number | null
+          start_date?: string
+          start_time?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
       canyon_clash_participants: {
         Row: {
           clash_id: number
@@ -385,33 +507,117 @@ export type Database = {
         }
         Relationships: []
       }
+      task_assignments: {
+        Row: {
+          created_at: string
+          id: number
+          member_id: number
+          notes: string | null
+          role: string
+          task_id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          member_id: number
+          notes?: string | null
+          role?: string
+          task_id: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          member_id?: number
+          notes?: string | null
+          role?: string
+          task_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_assignments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_assignments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          created_at: string
+          id: number
+          notes: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          notes?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          notes?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           display_name: string | null
           id: string
           is_admin: boolean | null
           is_approved: boolean | null
+          member_id: number | null
         }
         Insert: {
           display_name?: string | null
           id?: string
           is_admin?: boolean | null
           is_approved?: boolean | null
+          member_id?: number | null
         }
         Update: {
           display_name?: string | null
           id?: string
           is_admin?: boolean | null
           is_approved?: boolean | null
+          member_id?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      is_admin_user: { Args: never; Returns: boolean }
       is_approved_user: { Args: never; Returns: boolean }
+      link_my_member: { Args: { p_member_id: number }; Returns: undefined }
+      save_calendar_event: {
+        Args: { p_checkpoints: Json; p_event: Json }
+        Returns: number
+      }
+      save_event_day: {
+        Args: { p_date: string; p_events: Json; p_kind: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

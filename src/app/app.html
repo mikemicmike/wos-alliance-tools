@@ -41,6 +41,12 @@
 
     @if (supabaseService.isAdminUser()) {
     <a class="nav-link text-white-50"
+       routerLink="/calendar"
+       routerLinkActive="text-white">
+      Calendar
+    </a>
+
+    <a class="nav-link text-white-50"
        routerLink="/tasks"
        routerLinkActive="text-white">
       Tasks

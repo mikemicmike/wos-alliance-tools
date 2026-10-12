@@ -1,0 +1,263 @@
+@if (loading()) {
+<div class="p-4 text-center">
+  <div class="spinner-border"></div>
+</div>
+} @else {
+<main class="container-fluid py-3">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <h1 class="h3 mb-0 me-auto">Calendar</h1>
+
+    <div class="btn-group"
+         role="group"
+         aria-label="View">
+      <button type="button"
+              class="btn btn-outline-secondary"
+              [class.active]="view() === 'calendar'"
+              [attr.aria-pressed]="view() === 'calendar'"
+              (click)="setView('calendar')">Calendar</button>
+      <button type="button"
+              class="btn btn-outline-secondary"
+              [class.active]="view() === 'list'"
+              [attr.aria-pressed]="view() === 'list'"
+              (click)="setView('list')">List</button>
+    </div>
+
+    <button type="button"
+            class="btn btn-outline-primary"
+            (click)="newEvent(today, false)">
+      + One-off
+    </button>
+    <button type="button"
+            class="btn btn-primary"
+            (click)="newEvent(today, true)">
+      + Repeating event
+    </button>
+  </div>
+
+  @if (error()) {
+  <div class="alert alert-danger">
+    {{ error() }}
+  </div>
+  }
+
+  @if (view() === 'calendar') {
+  <section class="card border-0 shadow-sm">
+    <div class="card-header bg-body d-flex align-items-center gap-2">
+      <button type="button"
+              class="btn btn-sm btn-outline-secondary"
+              aria-label="Previous month"
+              (click)="shiftMonth(-1)">‹</button>
+      <button type="button"
+              class="btn btn-sm btn-outline-secondary"
+              aria-label="Next month"
+              (click)="shiftMonth(1)">›</button>
+      <button type="button"
+              class="btn btn-sm btn-outline-secondary"
+              (click)="goToToday()">Today</button>
+      <h2 class="h5 mb-0 ms-2">{{ monthLabel() }}</h2>
+      <span class="small text-body-secondary ms-auto d-none d-md-inline">
+        Times in UTC · click a day to add a one-off · hover a ◆ checkpoint to see who's on it ·
+        ⇠ moved earlier · ⚠ overlaps
+      </span>
+    </div>
+
+    <div class="calendar-grid">
+      @for (weekday of weekdays; track weekday) {
+      <div class="calendar-weekday">{{ weekday }}</div>
+      }
+
+      @for (week of weeks(); track week[0].date) {
+      @for (cell of week; track cell.date) {
+      <div class="calendar-day"
+           [class.out-of-month]="!cell.inMonth"
+           [class.today]="cell.isToday"
+           role="button"
+           tabindex="0"
+           [attr.aria-label]="'Add a one-off on ' + cell.date"
+           (click)="newEvent(cell.date, false)"
+           (keydown.enter)="newEvent(cell.date, false)">
+        <div class="calendar-date">{{ cell.day }}</div>
+
+        @for (occurrence of cell.occurrences; track occurrence.event.id + occurrence.start) {
+        <button type="button"
+                class="event-chip"
+                [class.skipped]="occurrence.skipped"
+                [class.continues]="occurrence.start !== cell.date"
+                [style.background-color]="colorHex(occurrence.event.color)"
+                [class.overlapping]="occurrence.overlapsWith.length > 0"
+                [title]="chipTitle(occurrence)"
+                (click)="openEvent(occurrence.event, occurrence.start, $event)">
+          @if (occurrence.overlapsWith.length) {
+          <span class="chip-flag"
+                aria-hidden="true">⚠</span>
+          }
+          @if (occurrence.start === cell.date && occurrence.startTime) {
+          @if (occurrence.shiftedFor.length) {
+          <span class="chip-flag"
+                aria-hidden="true">⇠</span>
+          }
+          <span class="chip-time">{{ occurrence.startTime }}</span>
+          }
+          @if (isStartOrWeekStart(occurrence, cell.date)) {
+          {{ occurrence.event.title }}
+          } @else {
+          <span aria-hidden="true">…</span><span class="visually-hidden">{{ occurrence.event.title }} continues</span>
+          }
+        </button>
+        }
+
+        @for (point of cell.checkpoints; track point.checkpoint.id + point.date) {
+        @let task = taskFor(point);
+        <div class="checkpoint-chip"
+             [class.skipped]="point.skipped"
+             [class.hover-left]="cell.rightEdge"
+             role="button"
+             tabindex="0"
+             (click)="openEvent(point.event, point.occurrenceStart, $event)"
+             (keydown.enter)="openEvent(point.event, point.occurrenceStart, $event)">
+          <span class="checkpoint-mark"
+                [style.color]="colorHex(point.event.color)">◆</span>
+          @if (point.checkpoint.time) {
+          <span class="chip-time">{{ shortTime(point.checkpoint.time) }}</span>
+          }
+          {{ point.checkpoint.title }}
+          @if (task && !owners(task).length) {
+          <span class="text-danger fw-bold"
+                title="Nobody is in charge of the linked task">!</span>
+          }
+
+          <!-- Hover card: who's needed -->
+          <div class="hover-card"
+               role="tooltip">
+            <div class="fw-semibold">{{ point.checkpoint.title }}</div>
+            <div class="small text-body-secondary mb-1">
+              {{ point.event.title }} · {{ point.date }}
+              @if (point.checkpoint.time) { · {{ shortTime(point.checkpoint.time) }} UTC }
+              @if (point.skipped) { · <strong>skipped</strong> }
+            </div>
+            @if (point.checkpoint.notes) {
+            <div class="small mb-1">{{ point.checkpoint.notes }}</div>
+            }
+            @if (task) {
+            <div class="small fw-semibold mt-1">Task: {{ task.title }}</div>
+            <div class="small">
+              <span class="text-body-secondary">In charge:</span>
+              @for (person of owners(task); track person.id) {
+              <div class="ms-2">{{ person.member.name }}@if (person.notes) {<span class="text-body-secondary ms-1">– {{ person.notes }}</span>}</div>
+              } @empty {
+              <div class="ms-2 text-danger">nobody yet</div>
+              }
+              <span class="text-body-secondary">Backups:</span>
+              @for (person of backups(task); track person.id) {
+              <div class="ms-2">{{ person.member.name }}@if (person.notes) {<span class="text-body-secondary ms-1">– {{ person.notes }}</span>}</div>
+              } @empty {
+              <div class="ms-2 text-body-tertiary">none</div>
+              }
+            </div>
+            } @else {
+            <div class="small text-body-tertiary">No task linked</div>
+            }
+          </div>
+        </div>
+        }
+      </div>
+      }
+      }
+    </div>
+  </section>
+  } @else {
+  <!-- List view -->
+  <section class="card border-0 shadow-sm">
+    <div class="card-header bg-body d-flex align-items-center">
+      <h2 class="h5 mb-0 me-auto">All events</h2>
+      <div class="form-check mb-0">
+        <input id="show-ended"
+               type="checkbox"
+               class="form-check-input"
+               [checked]="showEnded()"
+               (change)="showEnded.set($any($event.target).checked)" />
+        <label for="show-ended"
+               class="form-check-label">Show ended</label>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Event</th>
+            <th>Repeats</th>
+            <th>When</th>
+            <th>Starts</th>
+            <th>Next</th>
+            <th>Checkpoints</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of listRows(); track row.event.id) {
+          <tr class="clickable"
+              (click)="openEvent(row.event, row.next)">
+            <td class="fw-semibold">
+              <span class="color-dot"
+                    [style.background-color]="colorHex(row.event.color)"></span>
+              {{ row.event.title }}
+              @if (row.event.notes) {
+              <div class="small fw-normal text-body-secondary">{{ row.event.notes }}</div>
+              }
+            </td>
+            <td class="text-nowrap">{{ describeRecurrence(row.event) }}</td>
+            <td class="text-nowrap">
+              {{ describeTimes(row.event) }}
+              @if (row.shift) {
+              <div class="small text-body-secondary">⇠ {{ row.shift }}</div>
+              }
+            </td>
+            <td class="text-nowrap">{{ row.event.start_date }}</td>
+            <td class="text-nowrap">
+              @if (row.next) {
+              {{ row.next }}
+              @if (row.running) {
+              <span class="badge text-bg-success">now</span>
+              }
+              } @else {
+              <span class="text-body-tertiary">ended</span>
+              }
+              @if (row.event.skips.length) {
+              <div class="small text-body-secondary">{{ row.event.skips.length }} skipped</div>
+              }
+            </td>
+            <td class="small">
+              @for (checkpoint of row.event.checkpoints; track checkpoint.id) {
+              <div>
+                <span class="text-body-secondary">{{ checkpointDayLabel(row.event.start_date, checkpoint.day_offset) }}:</span>
+                {{ checkpoint.title }}
+                @if (checkpoint.task_id !== null && tasksById().get(checkpoint.task_id); as task) {
+                <span class="badge text-bg-light border">{{ task.title }}</span>
+                }
+              </div>
+              } @empty {
+              <span class="text-body-tertiary">—</span>
+              }
+            </td>
+          </tr>
+          } @empty {
+          <tr>
+            <td colspan="6"
+                class="text-center text-body-secondary py-4">
+              No events yet - add a one-off or a repeating event above.
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+  }
+</main>
+
+@if (editor(); as target) {
+<app-calendar-event-editor [target]="target"
+                           [tasks]="tasks()"
+                           [events]="events()"
+                           (closed)="editorClosed($event)" />
+}
+}

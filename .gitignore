@@ -42,3 +42,6 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Supabase CLI version-check cache (rewritten by npm run gen:types)
+supabase/.temp/cli-latest

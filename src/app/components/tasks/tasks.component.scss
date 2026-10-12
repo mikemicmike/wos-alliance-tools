@@ -12,3 +12,11 @@
 .assignee-name {
   min-width: 8rem;
 }
+
+// The person being filtered on
+.assignee-row.highlight {
+  margin-inline: -0.35rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--bs-border-radius);
+  background-color: var(--bs-warning-bg-subtle);
+}

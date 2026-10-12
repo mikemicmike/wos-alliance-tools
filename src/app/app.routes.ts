@@ -15,6 +15,7 @@ import { SignupComponent } from './components/signup/signup.component';
 import { MembersBulkEditComponent } from './components/members-bulk-edit/members-bulk-edit.component';
 import { UsersComponent } from './components/users/users.component';
 import { TasksComponent } from './components/tasks/tasks.component';
+import { CalendarComponent } from './components/calendar/calendar.component';
 import { EventKind } from './defs/event-kind';
 import { requireAdminGuard } from './guards/require-admin.guard';
 import { unsavedChangesGuard } from './guards/unsaved-changes.guard';
@@ -75,6 +76,11 @@ export const routes: Routes = [
   {
     path: 'tasks',
     component: TasksComponent,
+    canActivate: [authGuard, requireApprovedUserProfileGuard, requireAdminGuard],
+  },
+  {
+    path: 'calendar',
+    component: CalendarComponent,
     canActivate: [authGuard, requireApprovedUserProfileGuard, requireAdminGuard],
   },
   {

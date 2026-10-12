@@ -1,0 +1,343 @@
+<div class="modal-backdrop fade show"></div>
+<div class="modal fade show d-block"
+     tabindex="-1"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="event-editor-title"
+     (click)="cancel()">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable"
+       (click)="$event.stopPropagation()">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5"
+            id="event-editor-title">
+          {{ isNew() ? (target().repeating ? 'New event' : 'New one-off') : 'Edit event' }}
+        </h2>
+        <button type="button"
+                class="btn-close"
+                aria-label="Close"
+                (click)="cancel()"></button>
+      </div>
+
+      <div class="modal-body">
+        @if (error()) {
+        <div class="alert alert-danger py-2">{{ error() }}</div>
+        }
+
+        @if (target().occurrenceStart && target().event?.repeat_every) {
+        <div class="alert alert-info py-2 small mb-3">
+          Editing changes <strong>every</strong> repeat of this event.
+          To change only the {{ target().occurrenceStart }} one, skip it and add a one-off instead.
+        </div>
+        }
+
+        <div class="row g-2 mb-3">
+          <div class="col-12 col-md-8">
+            <label for="event-title"
+                   class="form-label small fw-semibold">Title</label>
+            <input id="event-title"
+                   class="form-control"
+                   placeholder="e.g. Foundry, Bear trap, SvS prep"
+                   [value]="title()"
+                   (input)="set(title, $any($event.target).value)" />
+          </div>
+          <div class="col-12 col-md-4">
+            <span class="form-label small fw-semibold d-block">Colour</span>
+            <div class="d-flex flex-wrap gap-1"
+                 role="radiogroup"
+                 aria-label="Colour">
+              @for (option of colors; track option.key) {
+              <button type="button"
+                      class="color-swatch"
+                      role="radio"
+                      [attr.aria-checked]="color() === option.key"
+                      [attr.aria-label]="option.label"
+                      [title]="option.label"
+                      [class.selected]="color() === option.key"
+                      [style.background-color]="option.hex"
+                      (click)="set(color, option.key)"></button>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- When -->
+        <div class="form-check mb-1">
+          <input id="event-all-day"
+                 type="checkbox"
+                 class="form-check-input"
+                 [checked]="allDay()"
+                 (change)="set(allDay, $any($event.target).checked)" />
+          <label for="event-all-day"
+                 class="form-check-label small">All day</label>
+        </div>
+        <div class="row g-2 align-items-end mb-1">
+          <div class="col-6 col-md-3">
+            <label for="event-start-date"
+                   class="form-label small fw-semibold">Start</label>
+            <input id="event-start-date"
+                   type="date"
+                   class="form-control"
+                   [value]="startDate()"
+                   (change)="startDateChanged($any($event.target).value)" />
+          </div>
+          @if (!allDay()) {
+          <div class="col-6 col-md-3">
+            <label for="event-start-time"
+                   class="form-label small fw-semibold">Time (UTC)</label>
+            <input id="event-start-time"
+                   type="time"
+                   class="form-control"
+                   [value]="startTime()"
+                   (change)="set(startTime, $any($event.target).value)" />
+          </div>
+          }
+          <div class="col-6 col-md-3">
+            <label for="event-end-date"
+                   class="form-label small fw-semibold">End</label>
+            <input id="event-end-date"
+                   type="date"
+                   class="form-control"
+                   [min]="startDate()"
+                   [value]="endDate()"
+                   (change)="set(endDate, $any($event.target).value)" />
+          </div>
+          @if (!allDay()) {
+          <div class="col-6 col-md-3">
+            <label for="event-end-time"
+                   class="form-label small fw-semibold">Time (UTC)</label>
+            <input id="event-end-time"
+                   type="time"
+                   class="form-control"
+                   [value]="endTime()"
+                   (change)="set(endTime, $any($event.target).value)" />
+          </div>
+          }
+        </div>
+
+        <!-- Repeat -->
+        <div class="row g-2 align-items-end mb-1 mt-1">
+          <div class="col-12 col-md-4">
+            <label for="event-repeat"
+                   class="form-label small fw-semibold">Repeat</label>
+            <select id="event-repeat"
+                    class="form-select"
+                    (change)="set(repeatMode, $any($event.target).value)">
+              <option value="none"
+                      [selected]="repeatMode() === 'none'">Doesn't repeat (one-off)</option>
+              <option value="1d"
+                      [selected]="repeatMode() === '1d'">Daily</option>
+              <option value="2d"
+                      [selected]="repeatMode() === '2d'">Every 2 days</option>
+              <option value="1w"
+                      [selected]="repeatMode() === '1w'">Weekly</option>
+              <option value="2w"
+                      [selected]="repeatMode() === '2w'">Every 2 weeks</option>
+              <option value="4w"
+                      [selected]="repeatMode() === '4w'">Every 4 weeks</option>
+              <option value="custom"
+                      [selected]="repeatMode() === 'custom'">Every X days / weeks…</option>
+            </select>
+          </div>
+          @if (repeatMode() === 'custom') {
+          <div class="col-6 col-md-3">
+            <label for="event-repeat-every"
+                   class="form-label small fw-semibold">Every</label>
+            <div class="input-group">
+              <input id="event-repeat-every"
+                     type="number"
+                     min="1"
+                     step="1"
+                     class="form-control"
+                     [value]="customEvery()"
+                     (change)="set(customEvery, +$any($event.target).value)" />
+              <select class="form-select"
+                      aria-label="Repeat unit"
+                      (change)="set(customUnit, $any($event.target).value)">
+                <option value="day"
+                        [selected]="customUnit() === 'day'">days</option>
+                <option value="week"
+                        [selected]="customUnit() === 'week'">weeks</option>
+              </select>
+            </div>
+          </div>
+          }
+          @if (repeatMode() !== 'none') {
+          <div class="col-6 col-md-3">
+            <label for="event-repeat-until"
+                   class="form-label small fw-semibold">Until (optional)</label>
+            <input id="event-repeat-until"
+                   type="date"
+                   class="form-control"
+                   [min]="startDate()"
+                   [value]="repeatUntil()"
+                   (change)="set(repeatUntil, $any($event.target).value)" />
+          </div>
+          }
+        </div>
+        <div class="small text-body-secondary mb-3">{{ recurrencePreview() }}</div>
+
+        <!-- Same-day rule (e.g. Bear makes way for Foundry / Canyon Clash) -->
+        @if (!allDay()) {
+        <div class="shift-rule mb-3">
+          <div class="form-check">
+            <input id="event-shift"
+                   type="checkbox"
+                   class="form-check-input"
+                   [checked]="shiftEnabled()"
+                   (change)="set(shiftEnabled, $any($event.target).checked)" />
+            <label for="event-shift"
+                   class="form-check-label">Start earlier on days with certain other events</label>
+          </div>
+          @if (shiftEnabled()) {
+          <div class="d-flex flex-wrap align-items-center gap-2 mt-2 ms-4">
+            <input type="number"
+                   min="1"
+                   max="720"
+                   step="5"
+                   class="form-control form-control-sm shift-minutes"
+                   aria-label="Minutes earlier"
+                   [value]="shiftMinutes()"
+                   (change)="set(shiftMinutes, +$any($event.target).value)" />
+            <span class="small">minutes earlier when on the same day as:</span>
+          </div>
+          <div class="d-flex flex-wrap gap-3 mt-2 ms-4">
+            @for (other of otherEvents(); track other.id) {
+            <div class="form-check mb-0">
+              <input type="checkbox"
+                     class="form-check-input"
+                     [id]="'shift-event-' + other.id"
+                     [checked]="shiftEventIds().includes(other.id)"
+                     (change)="toggleShiftEvent(other.id, $any($event.target).checked)" />
+              <label class="form-check-label small"
+                     [for]="'shift-event-' + other.id">
+                <span class="shift-dot"
+                      [style.background-color]="colorHex(other.color)"></span>
+                {{ other.title }}
+              </label>
+            </div>
+            } @empty {
+            <span class="small text-body-tertiary">No other events yet.</span>
+            }
+          </div>
+          }
+        </div>
+        }
+
+        <label for="event-notes"
+               class="form-label small fw-semibold">Notes</label>
+        <textarea id="event-notes"
+                  class="form-control mb-3"
+                  rows="2"
+                  [value]="notes()"
+                  (input)="set(notes, $any($event.target).value)"></textarea>
+
+        <!-- Checkpoints -->
+        <div class="d-flex align-items-center mb-2">
+          <h3 class="h6 mb-0 me-auto">Checkpoints</h3>
+          <button type="button"
+                  class="btn btn-sm btn-outline-primary"
+                  (click)="addCheckpoint()">
+            + Add checkpoint
+          </button>
+        </div>
+        <p class="small text-body-secondary">
+          Things to do on a given day of each occurrence, e.g. "Tue: open registration". Link a task to see who's
+          responsible when hovering it on the calendar.
+        </p>
+
+        @for (checkpoint of checkpoints(); track checkpoint.key) {
+        <div class="checkpoint-row row g-2 align-items-center mb-2">
+          <div class="col-6 col-md-3">
+            <select class="form-select form-select-sm"
+                    aria-label="Checkpoint day"
+                    (change)="updateCheckpoint(checkpoint.key, { day_offset: +$any($event.target).value })">
+              @for (day of dayOptions(); track day.offset) {
+              <option [value]="day.offset"
+                      [selected]="day.offset === checkpoint.day_offset">{{ day.label }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-6 col-md-2">
+            <input type="time"
+                   class="form-control form-control-sm"
+                   aria-label="Checkpoint time (UTC, optional)"
+                   title="Time (UTC, optional)"
+                   [value]="checkpoint.time ?? ''"
+                   (change)="updateCheckpoint(checkpoint.key, { time: $any($event.target).value || null })" />
+          </div>
+          <div class="col-12 col-md-4">
+            <input class="form-control form-control-sm"
+                   placeholder="What needs doing"
+                   aria-label="Checkpoint description"
+                   [value]="checkpoint.title"
+                   (input)="updateCheckpoint(checkpoint.key, { title: $any($event.target).value })" />
+          </div>
+          <div class="col-10 col-md-2">
+            <select class="form-select form-select-sm"
+                    aria-label="Checkpoint task"
+                    (change)="updateCheckpoint(checkpoint.key, { task_id: $any($event.target).value ? +$any($event.target).value : null })">
+              <option value=""
+                      [selected]="checkpoint.task_id === null">No task</option>
+              @for (task of tasks(); track task.id) {
+              <option [value]="task.id"
+                      [selected]="task.id === checkpoint.task_id">{{ task.title }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-2 col-md-1 text-end">
+            <button type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    aria-label="Remove checkpoint"
+                    title="Remove checkpoint"
+                    (click)="removeCheckpoint(checkpoint.key)">✕</button>
+          </div>
+          <div class="col-12">
+            <input class="form-control form-control-sm"
+                   placeholder="Notes (optional)"
+                   aria-label="Checkpoint notes"
+                   [value]="checkpoint.notes ?? ''"
+                   (input)="updateCheckpoint(checkpoint.key, { notes: $any($event.target).value })" />
+          </div>
+        </div>
+        } @empty {
+        <div class="small text-body-tertiary">No checkpoints.</div>
+        }
+      </div>
+
+      <div class="modal-footer">
+        @if (!isNew()) {
+        <button type="button"
+                class="btn btn-outline-danger me-auto"
+                [disabled]="saving()"
+                (click)="deleteEvent()">
+          Delete{{ target().event?.repeat_every ? ' series' : '' }}
+        </button>
+        @if (target().occurrenceStart && target().event?.repeat_every) {
+        <button type="button"
+                class="btn btn-outline-warning"
+                [disabled]="saving()"
+                (click)="toggleOccurrence()">
+          {{ occurrenceSkipped() ? 'Restore' : 'Skip' }} {{ target().occurrenceStart }} only
+        </button>
+        }
+        }
+        <button type="button"
+                class="btn btn-outline-secondary"
+                [disabled]="saving()"
+                (click)="cancel()">
+          Cancel
+        </button>
+        <button type="button"
+                class="btn btn-primary"
+                [disabled]="saving()"
+                (click)="save()">
+          @if (saving()) {
+          <span class="spinner-border spinner-border-sm me-1"></span>
+          }
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

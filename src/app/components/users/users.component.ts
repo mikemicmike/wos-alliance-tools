@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 
+import { MembersService } from '../../services/members.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { DUserProfile, UserProfilesService } from '../../services/user-profiles.service';
 
@@ -11,12 +12,14 @@ type ProfileStatus = 'Pending' | 'Approved' | 'Rejected';
 })
 export class UsersComponent {
   private readonly userProfilesService = inject(UserProfilesService);
+  private readonly membersService = inject(MembersService);
   private readonly currentUser = inject(SupabaseService).user;
 
   readonly loading = signal(true);
   readonly busyId = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly profiles = signal<DUserProfile[]>([]);
+  private readonly memberNames = signal(new Map<number, string>());
 
   /** Pending sign-ups first, then by name. */
   readonly sortedProfiles = computed(() => {
@@ -38,6 +41,23 @@ export class UsersComponent {
       : p_profile.is_approved === false
         ? 'Rejected'
         : 'Pending';
+  }
+
+  /** Name of the member this login is linked to (inactive ones show as #id). */
+  linkedMember(p_profile: DUserProfile): string | null {
+    const id = p_profile.member_id;
+    return id == null ? null : (this.memberNames().get(id) ?? `#${id}`);
+  }
+
+  async unlinkMember(p_profile: DUserProfile): Promise<void> {
+    if (
+      !confirm(
+        `Unlink ${p_profile.display_name || 'this user'} from ${this.linkedMember(p_profile)}?`,
+      )
+    ) {
+      return;
+    }
+    await this.updateProfile(p_profile, { member_id: null });
   }
 
   isSelf(p_profile: DUserProfile): boolean {
@@ -67,7 +87,7 @@ export class UsersComponent {
 
   private async updateProfile(
     p_profile: DUserProfile,
-    p_changes: { is_approved?: boolean; is_admin?: boolean },
+    p_changes: { is_approved?: boolean; is_admin?: boolean; member_id?: null },
   ): Promise<void> {
     this.busyId.set(p_profile.id);
     this.error.set(null);
@@ -83,7 +103,12 @@ export class UsersComponent {
 
   async ngOnInit(): Promise<void> {
     try {
-      this.profiles.set(await this.userProfilesService.list());
+      const [profiles, members] = await Promise.all([
+        this.userProfilesService.list(),
+        this.membersService.listActiveNames(),
+      ]);
+      this.profiles.set(profiles);
+      this.memberNames.set(new Map(members.map((m) => [m.id, m.name])));
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'Unable to load users.');
     } finally {

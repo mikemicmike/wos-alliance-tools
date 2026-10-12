@@ -21,6 +21,7 @@
         <thead class="table-light">
           <tr>
             <th>Name</th>
+            <th>Member</th>
             <th>Status</th>
             <th class="text-end">Actions</th>
           </tr>
@@ -36,6 +37,17 @@
               }
               @if (isSelf(profile)) {
               <span class="badge text-bg-secondary ms-1">You</span>
+              }
+            </td>
+            <td>
+              @if (linkedMember(profile); as member) {
+              {{ member }}
+              <button type="button"
+                      class="btn btn-link btn-sm p-0 ms-1 align-baseline"
+                      [disabled]="busyId() === profile.id"
+                      (click)="unlinkMember(profile)">unlink</button>
+              } @else {
+              <span class="text-body-tertiary small">not linked</span>
               }
             </td>
             <td>
@@ -77,7 +89,7 @@
           </tr>
           } @empty {
           <tr>
-            <td colspan="3"
+            <td colspan="4"
                 class="text-center text-body-secondary py-4">
               No users found.
             </td>

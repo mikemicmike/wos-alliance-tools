@@ -21,6 +21,67 @@
   </div>
   }
 
+  <!-- Whose tasks -->
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <div class="btn-group"
+         role="group"
+         aria-label="Whose tasks">
+      <button type="button"
+              class="btn btn-outline-secondary"
+              [class.active]="personFilter() === 'all'"
+              [attr.aria-pressed]="personFilter() === 'all'"
+              (click)="showAll()">All tasks</button>
+      <button type="button"
+              class="btn btn-outline-secondary"
+              [class.active]="personFilter() === 'me'"
+              [attr.aria-pressed]="personFilter() === 'me'"
+              (click)="showMine()">My tasks</button>
+    </div>
+
+    <select class="form-select w-auto"
+            aria-label="Show tasks for"
+            (change)="showPerson($event)">
+      <option value=""
+              [selected]="personFilter() === 'all' || personFilter() === 'me'">Someone else…</option>
+      @for (member of members(); track member.id) {
+      <option [value]="member.id"
+              [selected]="personFilter() === member.id">{{ member.name }}</option>
+      }
+    </select>
+
+    <span class="small text-body-secondary ms-auto">
+      @if (linkedMemberId() !== null) {
+      Logged in as <strong>{{ linkedMemberName() }}</strong>
+      <button type="button"
+              class="btn btn-link btn-sm p-0 ms-1 align-baseline"
+              [disabled]="busy()"
+              (click)="unlinkMe()">unlink</button>
+      } @else if (!linking()) {
+      <button type="button"
+              class="btn btn-link btn-sm p-0 align-baseline"
+              (click)="linking.set(true)">Link my login to my member</button>
+      }
+    </span>
+  </div>
+
+  @if (linking()) {
+  <div class="alert alert-info d-flex flex-wrap align-items-center gap-2">
+    <span>Which member are you? Your login will be linked to them so <strong>My tasks</strong> works.</span>
+    <select class="form-select form-select-sm w-auto"
+            aria-label="Which member are you"
+            [disabled]="busy()"
+            (change)="linkMe($event)">
+      <option value="">Pick yourself…</option>
+      @for (member of members(); track member.id) {
+      <option [value]="member.id">{{ member.name }}</option>
+      }
+    </select>
+    <button type="button"
+            class="btn btn-sm btn-outline-secondary"
+            (click)="linking.set(false); personFilter() === 'me' && personFilter.set('all')">Cancel</button>
+  </div>
+  }
+
   <!-- New task -->
   <section class="card border-0 shadow-sm mb-3">
     <div class="card-body">
@@ -31,7 +92,7 @@
                  class="form-label fw-semibold small">New task</label>
           <input id="new-task-title"
                  class="form-control"
-                 placeholder="e.g. Bear trap rally lead"
+                 placeholder="e.g. Forts Signup"
                  [value]="newTitle()"
                  (input)="newTitle.set($any($event.target).value)" />
         </div>
@@ -89,7 +150,8 @@
           @for (section of [{ label: 'In charge', list: ownerList }, { label: 'Backups', list: backups(task) }]; track section.label) {
           <div class="small fw-semibold text-body-secondary mb-1">{{ section.label }}</div>
           @for (assignment of section.list; track assignment.id) {
-          <div class="d-flex align-items-center gap-2 mb-1">
+          <div class="d-flex align-items-center gap-2 mb-1 assignee-row"
+               [class.highlight]="assignment.member_id === filterMemberId()">
             <span class="fw-semibold text-nowrap assignee-name">
               {{ assignment.member.name }}
               @if (isInactive(assignment)) {
@@ -165,7 +227,9 @@
     </div>
     } @empty {
     <div class="col-12 text-center text-body-secondary py-4">
-      @if (tasks().length) {
+      @if (filterMemberId() !== null && !search()) {
+      {{ memberName(filterMemberId()) }} isn't on any tasks.
+      } @else if (tasks().length) {
       No tasks match your search.
       } @else {
       No tasks yet - add the first one above.

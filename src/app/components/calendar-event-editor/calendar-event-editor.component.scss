@@ -1,0 +1,34 @@
+.color-swatch {
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  padding: 0;
+
+  &.selected {
+    border-color: var(--bs-body-color);
+    box-shadow: 0 0 0 2px var(--bs-body-bg) inset;
+  }
+}
+
+.checkpoint-row {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed var(--bs-border-color);
+}
+
+.shift-rule {
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--bs-border-radius);
+  background-color: var(--bs-tertiary-bg);
+}
+
+.shift-minutes {
+  width: 5.5rem;
+}
+
+.shift-dot {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+}

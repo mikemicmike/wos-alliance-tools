@@ -35,6 +35,8 @@ export class SupabaseService {
   readonly isAdminUser = computed(() => {
     return this.userProfile()?.is_admin;
   });
+  /** The alliance member this login is linked to ("this is me"), if any. */
+  readonly linkedMemberId = computed(() => this.userProfile()?.member_id ?? null);
   constructor() {
     /*
      * Keep Angular state synchronized with Supabase.
@@ -144,6 +146,20 @@ export class SupabaseService {
     }
 
     this._session.set(null);
+  }
+
+  /** Links (or with null, unlinks) the signed-in user's profile to a member. */
+  async linkMyMember(p_memberId: number | null): Promise<void> {
+    const { error } = await this.client.rpc('link_my_member', {
+      // Generated types never mark function args nullable; null (= unlink) is valid in the SQL
+      p_member_id: p_memberId as number,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    await this.getProfile();
   }
 
   async getCurrentUserProfile() {
