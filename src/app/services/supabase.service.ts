@@ -33,7 +33,7 @@ export class SupabaseService {
     return this.userProfile()?.is_approved;
   });
   readonly isAdminUser = computed(() => {
-    return this.userProfile()?.is_approved;
+    return this.userProfile()?.is_admin;
   });
   constructor() {
     /*
@@ -47,8 +47,15 @@ export class SupabaseService {
      */
     this.client.auth.onAuthStateChange((_event, session) => {
       this._session.set(session);
-      this.getCurrentUserProfile().then((p_profile) => {
-        this.userProfile.set(p_profile);
+      if (!session) {
+        this.userProfile.set(null);
+        return;
+      }
+      // Deferred: calling other auth methods inside this callback can deadlock supabase-js
+      setTimeout(() => {
+        this.getCurrentUserProfile()
+          .then((p_profile) => this.userProfile.set(p_profile ?? null))
+          .catch((error) => console.error('Unable to load user profile', error));
       });
     });
 

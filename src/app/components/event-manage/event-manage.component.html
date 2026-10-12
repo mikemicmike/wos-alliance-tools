@@ -1,0 +1,368 @@
+@if (loading()) {
+<div class="p-4 text-center">
+  <div class="spinner-border"></div>
+</div>
+} @else {
+<main class="container-fluid py-3">
+
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <button type="button"
+            class="btn btn-outline-secondary btn-sm"
+            (click)="clickBack()">
+      ← {{ config.plural }}
+    </button>
+
+    <h1 class="h3 mb-0 me-auto">
+      {{ config.label }} {{ date }}
+    </h1>
+
+    <button class="btn btn-primary"
+            type="button"
+            (click)="clickManage()">
+      Edit registrations
+    </button>
+
+    <div class="btn-group">
+      <button type="button"
+              class="btn btn-outline-secondary"
+              [class.active]="compact()"
+              (click)="compact.set(!compact())">
+        Compact view
+      </button>
+      <button type="button"
+              class="btn btn-outline-secondary"
+              [disabled]="!slotted().length"
+              (click)="copyRoster()">
+        {{ copied() ? 'Copied!' : 'Copy roster' }}
+      </button>
+      <button type="button"
+              class="btn btn-outline-secondary"
+              [disabled]="!events().length"
+              (click)="downloadCsv()">
+        CSV
+      </button>
+    </div>
+  </div>
+
+  @if (error()) {
+  <div class="alert alert-danger">
+    {{ error() }}
+  </div>
+  }
+
+  @if (!events().length) {
+  <div class="alert alert-info">
+    Nothing registered for this date yet - use <strong>Edit registrations</strong> to set it up.
+  </div>
+  }
+
+  @if (extras().length) {
+  <div class="alert alert-warning">
+    There are more {{ config.label }} records on this date than legions. The extra ones are shown last -
+    delete whichever one shouldn't be there.
+  </div>
+  }
+
+  @if (compact()) {
+  <!-- Screenshot-friendly roster -->
+  <section class="card border-0 shadow-sm compact-roster">
+    <div class="card-body">
+      <h2 class="h5 mb-3">{{ config.label }} {{ date }}</h2>
+      <div class="row g-3">
+        @for (event of slotted(); track event.id) {
+        <div class="col-6">
+          <div class="badge w-100 text-start py-2 mb-2"
+               [class.l1]="event.legion === 1"
+               [class.l2]="event.legion === 2">
+            Legion {{ event.legion }} · {{ event.time }}
+            @if (event.opponent) {
+            · vs {{ event.opponent }}@if (event.opponent_2) { &amp; {{ event.opponent_2 }}}
+            }
+          </div>
+          <ol class="compact-list">
+            @for (participant of regulars(event); track participant.id) {
+            <li>
+              <span>{{ participant.member.name }}</span>
+              <span class="text-body-secondary">{{ participant.power | number }}</span>
+            </li>
+            }
+          </ol>
+          @if (subs(event).length) {
+          <div class="small fw-semibold text-body-secondary mt-2">Subs</div>
+          <ol class="compact-list">
+            @for (participant of subs(event); track participant.id) {
+            <li>
+              <span>{{ participant.member.name }}</span>
+              <span class="text-body-secondary">{{ participant.power | number }}</span>
+            </li>
+            }
+          </ol>
+          }
+        </div>
+        }
+      </div>
+    </div>
+  </section>
+  } @else {
+  <section class="row g-3 mb-3">
+    @for (event of displayEvents(); track event.id) {
+    @let isExtra = $index >= slotted().length;
+    @let place = placement(event);
+    @let count = counts(event);
+    <div class="col-12 col-xl-6">
+      <article class="card border-0 shadow-sm h-100"
+               [class.legion-border-1]="!isExtra && event.legion === 1"
+               [class.legion-border-2]="!isExtra && event.legion === 2"
+               [class.border-warning]="isExtra">
+        <div class="card-body">
+          <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+            <h2 class="h5 mb-0">
+              <span class="badge rounded-pill fw-bold py-2 px-3"
+                    [class.l1]="event.legion === 1"
+                    [class.l2]="event.legion === 2"
+                    [class.text-bg-secondary]="event.legion !== 1 && event.legion !== 2">
+                L{{ event.legion }}
+              </span>
+              {{ event.time }}
+              @if (event.opponent && editingId() !== event.id) {
+              vs {{ event.opponent }}@if (event.opponent_2) { &amp; {{ event.opponent_2 }}}
+              }
+              @if (isExtra) {
+              <span class="badge text-bg-warning ms-1">Extra</span>
+              }
+            </h2>
+
+            @if (editingId() !== event.id && place !== null) {
+            <div class="text-end small">
+              <div>
+                KNi:
+                <strong [class.text-success]="place === 1">{{ event.our_score | number }}</strong>
+              </div>
+              <div>
+                {{ event.opponent }}: {{ event.opponent_score | number }}
+              </div>
+              @if (config.opponents === 2 && event.opponent_2) {
+              <div>
+                {{ event.opponent_2 }}: {{ event.opponent_2_score | number }}
+              </div>
+              }
+              @if (config.opponents === 1) {
+              <span class="badge"
+                    [class.text-bg-success]="place === 1"
+                    [class.text-bg-danger]="place !== 1">{{ place === 1 ? 'Win' : 'Loss' }}</span>
+              } @else {
+              <span class="badge"
+                    [class.text-bg-success]="place === 1"
+                    [class.text-bg-warning]="place === 2"
+                    [class.text-bg-danger]="place === 3">
+                {{ place === 1 ? '1st' : place === 2 ? '2nd' : '3rd' }}
+              </span>
+              }
+            </div>
+            }
+          </div>
+
+          @if (editingId() === event.id && editForm) {
+          <form [formGroup]="editForm"
+                (ngSubmit)="saveEdit(event)">
+            <div class="row g-2 mb-3">
+              <div class="col-12 col-sm-4">
+                <label class="form-label fw-semibold small"
+                       for="our_score">KNi score</label>
+                <input id="our_score"
+                       type="number"
+                       class="form-control form-control-sm"
+                       formControlName="our_score">
+              </div>
+              <div class="col-6 col-sm-4">
+                <label class="form-label fw-semibold small"
+                       for="opponent">Opponent</label>
+                <input id="opponent"
+                       class="form-control form-control-sm"
+                       formControlName="opponent">
+              </div>
+              <div class="col-6 col-sm-4">
+                <label class="form-label fw-semibold small"
+                       for="opponent_score">Opponent score</label>
+                <input id="opponent_score"
+                       type="number"
+                       class="form-control form-control-sm"
+                       formControlName="opponent_score">
+              </div>
+              @if (config.opponents === 2) {
+              <div class="col-6 col-sm-4 offset-sm-4">
+                <label class="form-label fw-semibold small"
+                       for="opponent_2">Opponent 2</label>
+                <input id="opponent_2"
+                       class="form-control form-control-sm"
+                       formControlName="opponent_2">
+              </div>
+              <div class="col-6 col-sm-4">
+                <label class="form-label fw-semibold small"
+                       for="opponent_2_score">Opponent 2 score</label>
+                <input id="opponent_2_score"
+                       type="number"
+                       class="form-control form-control-sm"
+                       formControlName="opponent_2_score">
+              </div>
+              }
+            </div>
+          </form>
+          }
+
+          <div class="d-flex flex-wrap align-items-end gap-4 mb-2">
+            <div>
+              <div class="small text-body-secondary">Regular</div>
+              <div class="fs-4 fw-semibold">{{ count.regular }}</div>
+            </div>
+            <div>
+              <div class="small text-body-secondary">Subs</div>
+              <div class="fs-4 fw-semibold">{{ count.subs }}</div>
+            </div>
+            <div>
+              <div class="small text-body-secondary">In game</div>
+              <div class="fs-4 fw-semibold"
+                   [class.text-success]="count.registered === count.total && count.total > 0">
+                {{ count.registered }}/{{ count.total }}
+              </div>
+            </div>
+            <div>
+              <div class="small text-body-secondary">Showed up</div>
+              <div class="fs-4 fw-semibold">{{ count.showedUp }}</div>
+            </div>
+
+            <div class="ms-auto d-flex gap-2">
+              @if (editingId() !== event.id) {
+              <button class="btn btn-primary"
+                      type="button"
+                      [disabled]="editingId() !== null || saving()"
+                      (click)="startEdit(event)">
+                Results &amp; attendance
+              </button>
+              <button class="btn btn-outline-danger"
+                      type="button"
+                      title="Delete this {{ config.label }} and its registrations"
+                      [disabled]="editingId() !== null || saving()"
+                      (click)="deleteEvent(event)">
+                Delete
+              </button>
+              } @else {
+              <button class="btn btn-outline-secondary"
+                      type="button"
+                      [disabled]="saving()"
+                      (click)="cancelEdit()">
+                Cancel
+              </button>
+              <button class="btn btn-primary"
+                      type="button"
+                      [disabled]="saving()"
+                      (click)="saveEdit(event)">
+                @if (saving()) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                Save
+              </button>
+              }
+            </div>
+          </div>
+
+          <div class="table-responsive mt-2">
+            <table class="table table-sm table-bordered table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>ID</th>
+                  <th>Member</th>
+                  <th>Power</th>
+                  <th class="text-center">Sub?</th>
+                  <th class="text-center"
+                      title="Registered in game">In game</th>
+                  <th class="text-center">
+                    Showed
+                    @if (editingId() === event.id) {
+                    <div class="btn-group btn-group-sm d-flex mt-1">
+                      <button type="button"
+                              class="btn btn-outline-success py-0"
+                              title="Tick everyone"
+                              (click)="markAllShowed(true)">all</button>
+                      <button type="button"
+                              class="btn btn-outline-secondary py-0"
+                              title="Untick everyone"
+                              (click)="markAllShowed(false)">none</button>
+                    </div>
+                    }
+                  </th>
+                  @if (config.playerScores) {
+                  <th class="text-center">Score</th>
+                  }
+                  <th>Remarks</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                @for (participant of event.participants; track participant.id; let participantIndex = $index) {
+                <tr>
+                  <td class="text-body-secondary">#{{ participant.member.gameId }}</td>
+                  <td class="fw-semibold text-nowrap">{{ participant.member.name }}</td>
+                  <td class="text-nowrap">{{ participant.power | number }}</td>
+                  <td class="text-center">
+                    @if (participant.is_substitute) {
+                    <span class="text-warning fw-semibold">Sub</span>
+                    }
+                  </td>
+                  <td class="text-center">
+                    <input type="checkbox"
+                           class="form-check-input"
+                           [attr.aria-label]="participant.member.name + ' registered in game'"
+                           [checked]="participant.registered"
+                           (change)="toggleRegistered(participant, $any($event.target).checked)">
+                  </td>
+
+                  @if (editingId() === event.id && editForm) {
+                  @let participantForm = editForm.controls.participants.at(participantIndex).controls;
+                  <td class="text-center">
+                    <input type="checkbox"
+                           class="form-check-input"
+                           [formControl]="participantForm.showed_up"
+                           [attr.aria-label]="participant.member.name + ' showed up'">
+                  </td>
+                  @if (config.playerScores) {
+                  <td style="min-width: 110px">
+                    <input type="number"
+                           class="form-control form-control-sm"
+                           [formControl]="participantForm.score">
+                  </td>
+                  }
+                  <td style="min-width: 160px">
+                    <input class="form-control form-control-sm"
+                           placeholder="e.g. didn't follow rally calls"
+                           [formControl]="participantForm.notes">
+                  </td>
+                  } @else {
+                  <td class="text-center">
+                    @if (participant.showed_up === true) {
+                    <span class="text-success">Yes</span>
+                    } @else if (participant.showed_up === false) {
+                    <span class="text-danger fw-bold">No</span>
+                    } @else {
+                    <span class="text-body-tertiary">—</span>
+                    }
+                  </td>
+                  @if (config.playerScores) {
+                  <td class="text-nowrap">{{ participant.score | number }}</td>
+                  }
+                  <td class="small">{{ participant.notes }}</td>
+                  }
+                </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </article>
+    </div>
+    }
+  </section>
+  }
+</main>
+}

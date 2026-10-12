@@ -2,6 +2,9 @@
 <p>Loading...</p>
 } @else {
 <main class="p-2">
+  @if (error()) {
+  <div class="alert alert-danger">{{ error() }}</div>
+  }
 
   <section class="row g-3 mb-2"
            aria-label="Alliance statistics">
@@ -99,10 +102,9 @@
                   [value]="statusFilter()"
                   (change)="setStatusFilter($event)">
             <option value="All">All statuses</option>
-            <option value="Active">Active</option>
-            <option value="Quit">Quit</option>
-            <option value="Transferred">Transferred</option>
-            <option value="Other_Alliance">Other Alliance</option>
+            @for (status of statusOptions(); track status) {
+            <option [value]="status">{{ status }}</option>
+            }
           </select>
         </div>
 
@@ -218,9 +220,6 @@
                     [class.text-warning]="member.foundry_participants[0].showed_up == null"
                     [class.text-danger]="member.foundry_participants[0].showed_up === false">
                 {{ member.foundry_participants[0].foundries.date }}
-                @if(member.foundry_participants[0].score){
-                ({{member.foundry_participants[0].score | number}})
-                }
               </span>
 
               }

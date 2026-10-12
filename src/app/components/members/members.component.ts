@@ -3,8 +3,6 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MembersService } from '../../services/members.service';
 import { DecimalPipe } from '@angular/common';
 
-type StatusFilter = 'Active' | 'Other_Alliance' | 'Quit' | 'Transferred' | 'All';
-
 @Component({
   selector: 'app-members',
   imports: [DecimalPipe, RouterLink],
@@ -18,7 +16,7 @@ export class MembersComponent {
 
   // Source state
   readonly searchTerm = signal('');
-  readonly statusFilter = signal<StatusFilter>('All');
+  readonly statusFilter = signal('All');
   error = signal<string | null>(null);
   loading = signal(true);
 
@@ -36,10 +34,10 @@ export class MembersComponent {
 
     return this.members().filter((member) => {
       const searchableValue = [
-        member.id,
+        member.gameId,
         member.name,
         member.rank,
-        member.status,
+        member.statuses.status,
         member.notes ?? '',
       ]
         .join(' ')
@@ -55,6 +53,11 @@ export class MembersComponent {
       return matchesSearch && matchesStatus && matchesSection;
     });
   });
+
+  /** Built from the data so it always matches the statuses table. */
+  readonly statusOptions = computed(() =>
+    [...new Set(this.members().map((member) => member.statuses.status))].sort(),
+  );
 
   readonly totalMembers = computed(() => this.members().length);
 
@@ -77,7 +80,7 @@ export class MembersComponent {
 
   setStatusFilter(event: Event): void {
     const select = event.target as HTMLSelectElement;
-    this.statusFilter.set(select.value as StatusFilter);
+    this.statusFilter.set(select.value);
   }
 
   getMemberStatus(member: ReturnType<MembersComponent['members']>[number]) {
@@ -104,8 +107,6 @@ export class MembersComponent {
     } finally {
       this.loading.set(false);
     }
-
-    this.loading.set(false);
   }
 
   async ngOnInit() {

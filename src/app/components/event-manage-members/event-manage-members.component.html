@@ -1,0 +1,283 @@
+@if (loading()) {
+<div class="p-4 text-center">
+  <div class="spinner-border"></div>
+</div>
+} @else {
+<main class="container-fluid py-3">
+
+  <div class="d-flex flex-wrap align-items-end gap-3 mb-3">
+    <h1 class="h3 mb-0">{{ config.label }} registrations</h1>
+
+    <div>
+      <label for="event-date"
+             class="form-label fw-semibold small mb-1">
+        Date
+      </label>
+      <input id="event-date"
+             type="date"
+             class="form-control"
+             [value]="date()"
+             (change)="dateChanged($event)" />
+    </div>
+  </div>
+
+  @if (error()) {
+  <div class="alert alert-danger">
+    {{ error() }}
+  </div>
+  }
+
+  @if (extras().length) {
+  <div class="alert alert-warning">
+    <div class="fw-semibold mb-2">
+      Extra {{ config.label }} records on this date (probably left over from a failed save):
+    </div>
+    @for (extra of extras(); track extra.id) {
+    <div class="d-flex align-items-center gap-2 mb-1">
+      <span>L{{ extra.legion }} · {{ extra.time || 'no time' }} · {{ extra.participants.length }} registrations</span>
+      <button type="button"
+              class="btn btn-sm btn-outline-danger"
+              (click)="deleteExtra(extra)">
+        Delete
+      </button>
+    </div>
+    }
+  </div>
+  }
+
+  @if (date()) {
+  <section class="row g-3 mb-3">
+    @for (slot of slots(); track slot.legion; let slotIndex = $index) {
+    @let count = counts()[slotIndex];
+    <div class="col-12 col-md-6">
+      <article class="card border-0 shadow-sm h-100"
+               [class.legion-border-1]="slot.legion === 1"
+               [class.legion-border-2]="slot.legion === 2">
+        <div class="card-body">
+          <div class="d-flex flex-wrap align-items-center gap-3">
+            <span class="badge rounded-pill fw-bold py-2 px-3"
+                  [class.l1]="slot.legion === 1"
+                  [class.l2]="slot.legion === 2">
+              Legion {{ slot.legion }}
+            </span>
+
+            <select class="form-select w-auto"
+                    [attr.aria-label]="'Legion ' + slot.legion + ' time'"
+                    [value]="slot.time"
+                    (change)="timeChanged(slotIndex, $event)">
+              <option value="">Not playing</option>
+              @for (time of timeOptions(slot); track time) {
+              <option [value]="time"
+                      [selected]="time === slot.time">{{ time }}</option>
+              }
+            </select>
+
+            <div class="d-flex gap-3 ms-auto text-center">
+              <div>
+                <div class="small text-body-secondary">Regular</div>
+                <div class="fs-5 fw-semibold">{{ count.regular }}</div>
+              </div>
+              <div>
+                <div class="small text-body-secondary">Subs</div>
+                <div class="fs-5 fw-semibold">{{ count.subs }}</div>
+              </div>
+              <div>
+                <div class="small text-body-secondary">In game</div>
+                <div class="fs-5 fw-semibold"
+                     [class.text-success]="count.total > 0 && count.registered === count.total">
+                  {{ count.registered }}/{{ count.total }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </div>
+    }
+  </section>
+
+  <section class="card border-0 shadow-sm">
+    <div class="card-header bg-body py-3 d-flex flex-wrap align-items-center gap-3">
+      <h2 class="h5 mb-0 me-auto">Participants</h2>
+
+      <input type="search"
+             class="form-control w-auto"
+             placeholder="Search name or ID"
+             aria-label="Search members"
+             [value]="search()"
+             (input)="search.set($any($event.target).value)" />
+
+      <div class="form-check mb-0">
+        <input id="assigned-only"
+               type="checkbox"
+               class="form-check-input"
+               [checked]="assignedOnly()"
+               (change)="assignedOnly.set($any($event.target).checked)" />
+        <label for="assigned-only"
+               class="form-check-label">Assigned only</label>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover align-middle mb-0 registration-grid">
+        <thead class="table-light">
+          <tr>
+            <th rowspan="2">ID</th>
+            <th rowspan="2">Member</th>
+            <th rowspan="2">Previous Power</th>
+            <th rowspan="2">Power</th>
+
+            @for (slot of slots(); track slot.legion) {
+            <th colspan="3"
+                class="text-center group-start"
+                [class.l1]="slot.legion === 1"
+                [class.l2]="slot.legion === 2">
+              Legion {{ slot.legion }}
+              @if (slot.time) {
+              · {{ slot.time }}
+              } @else {
+              <span class="fw-normal">(not playing)</span>
+              }
+            </th>
+            }
+          </tr>
+
+          <tr>
+            @for (slot of slots(); track slot.legion) {
+            <th class="text-center group-start"
+                [class.legion-tint-1]="slot.legion === 1"
+                [class.legion-tint-2]="slot.legion === 2">Regular</th>
+            <th class="text-center"
+                [class.legion-tint-1]="slot.legion === 1"
+                [class.legion-tint-2]="slot.legion === 2">Sub</th>
+            <th class="text-center"
+                title="Registered in game"
+                [class.legion-tint-1]="slot.legion === 1"
+                [class.legion-tint-2]="slot.legion === 2">In game</th>
+            }
+          </tr>
+        </thead>
+
+        <tbody (keydown)="gridKeydown($event)">
+          @for (member of visibleMembers(); track member.memberId) {
+          <tr>
+            <td class="text-body-secondary">
+              #{{ member.gameId }}
+            </td>
+
+            <td class="fw-semibold text-nowrap">
+              {{ member.name }}
+              @if (member.inactive) {
+              <span class="badge text-bg-secondary ms-1"
+                    title="This member is no longer active but is registered on this date">inactive</span>
+              }
+            </td>
+
+            <td class="text-nowrap">
+              @if (member.previousPower !== null) {
+              {{ member.previousPower | number }}
+              <span class="small text-body-secondary">({{ member.previousPowerDate }})</span>
+              } @else {
+              —
+              }
+            </td>
+
+            <td style="min-width: 130px">
+              <input type="number"
+                     class="form-control form-control-sm"
+                     data-col="0"
+                     [attr.aria-label]="member.name + ' power'"
+                     [value]="member.power"
+                     (change)="powerChanged(member.memberId, $event)" />
+            </td>
+
+            @for (assignment of member.assignments; track $index; let slotIndex = $index) {
+            @let slot = slots()[slotIndex];
+            @let disabled = !slot.time;
+            @let assigned = assignment.regular || assignment.sub;
+            <td class="selection-cell group-start"
+                [class.legion-tint-1]="slot.legion === 1"
+                [class.legion-tint-2]="slot.legion === 2">
+              <label class="selection-cell-label"
+                     [class.selected]="assignment.regular"
+                     [class.disabled]="disabled">
+                <input type="checkbox"
+                       class="form-check-input"
+                       [attr.data-col]="1 + slotIndex * 3"
+                       [attr.aria-label]="member.name + ' regular in legion ' + slot.legion"
+                       [disabled]="disabled"
+                       [checked]="assignment.regular"
+                       (change)="assignmentChanged(member.memberId, slotIndex, 'regular', $any($event.target).checked)" />
+              </label>
+            </td>
+
+            <td class="selection-cell"
+                [class.legion-tint-1]="slot.legion === 1"
+                [class.legion-tint-2]="slot.legion === 2">
+              <label class="selection-cell-label"
+                     [class.selected]="assignment.sub"
+                     [class.disabled]="disabled">
+                <input type="checkbox"
+                       class="form-check-input"
+                       [attr.data-col]="2 + slotIndex * 3"
+                       [attr.aria-label]="member.name + ' sub in legion ' + slot.legion"
+                       [disabled]="disabled"
+                       [checked]="assignment.sub"
+                       (change)="assignmentChanged(member.memberId, slotIndex, 'sub', $any($event.target).checked)" />
+              </label>
+            </td>
+
+            <td class="selection-cell"
+                [class.legion-tint-1]="slot.legion === 1"
+                [class.legion-tint-2]="slot.legion === 2">
+              <label class="selection-cell-label"
+                     [class.selected-registered]="assignment.registered"
+                     [class.disabled]="!assigned">
+                <input type="checkbox"
+                       class="form-check-input"
+                       [attr.data-col]="3 + slotIndex * 3"
+                       [attr.aria-label]="member.name + ' registered in game for legion ' + slot.legion"
+                       [disabled]="!assigned"
+                       [checked]="assignment.registered"
+                       (change)="registeredChanged(member.memberId, slotIndex, $any($event.target).checked)" />
+              </label>
+            </td>
+            }
+          </tr>
+          } @empty {
+          <tr>
+            <td colspan="10"
+                class="text-center text-body-secondary py-4">
+              No members match your search.
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card-footer bg-body d-flex justify-content-end align-items-center gap-2 py-3">
+      @if (dirty()) {
+      <span class="text-warning-emphasis small me-auto">Unsaved changes</span>
+      }
+
+      <button type="button"
+              class="btn btn-outline-secondary"
+              (click)="cancel()">
+        Cancel
+      </button>
+
+      <button type="button"
+              (click)="save()"
+              class="btn btn-primary"
+              [disabled]="saving()">
+        @if (saving()) {
+        <span class="spinner-border spinner-border-sm me-2"></span>
+        }
+        Save registrations
+      </button>
+    </div>
+  </section>
+  }
+</main>
+}

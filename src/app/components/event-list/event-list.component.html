@@ -1,0 +1,240 @@
+@if (loading()) {
+<p>Loading...</p>
+} @else {
+<main class="p-2">
+
+  @if (error()) {
+  <div class="alert alert-danger">
+    {{ error() }}
+  </div>
+  }
+
+  <section class="row g-3 mb-2"
+           aria-label="{{ config.label }} statistics">
+
+    <div class="col-6 col-md-3">
+      <article class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <p class="text-body-secondary mb-2">
+            Wins
+          </p>
+
+          <p class="mb-0">
+            <span class="fs-2 fw-bold text-success">
+              @if (winPercentage() !== null) {
+              {{ winPercentage() | number:'1.0-0' }}%
+              } @else {
+              —
+              }
+            </span>
+            <span class="fs-4 text-muted">({{ wins() }}-{{ losses() }})</span>
+          </p>
+        </div>
+      </article>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <article class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <p class="text-body-secondary mb-2">
+            Missing results
+          </p>
+
+          <p class="fs-2 fw-bold text-warning-emphasis mb-0">
+            {{ missingResults() }}
+          </p>
+        </div>
+      </article>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <article class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <p class="text-body-secondary mb-2">
+            Upcoming
+          </p>
+
+          <p class="fs-2 fw-bold text-warning-emphasis mb-0">
+            {{ upcomingDays() }}
+          </p>
+        </div>
+      </article>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <article class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <p class="text-body-secondary mb-2">
+            Total
+          </p>
+
+          <p class="fs-2 fw-bold text-warning-emphasis mb-0">
+            {{ days().length }}
+          </p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="card border-0 shadow-sm">
+    <div class="card-body border-bottom">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-lg-5">
+          <label class="form-label fw-semibold"
+                 for="event-search">
+            Search {{ config.plural }}
+          </label>
+
+          <input id="event-search"
+                 type="search"
+                 class="form-control"
+                 placeholder="Search by Date, Time, Opponent"
+                 [value]="searchTerm()"
+                 (input)="setSearchTerm($event)" />
+        </div>
+
+        <div class="col-12 col-sm-8 col-lg-3">
+          <label class="form-label fw-semibold"
+                 for="status-filter">
+            Status
+          </label>
+
+          <select id="status-filter"
+                  class="form-select"
+                  [value]="statusFilter()"
+                  (change)="setStatusFilter($event)">
+            <option value="All">All statuses</option>
+            <option value="Upcoming">Upcoming</option>
+            <option value="Today">Today</option>
+            <option value="Done">Done</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-sm-4 col-lg-4">
+          <div class="d-flex justify-content-end gap-2">
+            <button type="button"
+                    class="btn btn-outline-secondary"
+                    (click)="clearFilters()">
+              Clear
+            </button>
+
+            <a [routerLink]="[config.path, 'manage-members', today]"
+               class="btn btn-primary text-nowrap">
+              Add {{ config.label }}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Status</th>
+            @for (legion of legions; track legion) {
+            <th scope="col"
+                class="legion-col"
+                [class.legion-col-2]="legion === 2">
+              <span class="badge rounded-pill"
+                    [class.l1]="legion === 1"
+                    [class.l2]="legion === 2">
+                Legion {{ legion }}
+              </span>
+            </th>
+            }
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (day of filteredDays(); track day.date) {
+          <tr class="clickable"
+              (click)="dayClick(day)">
+            <td class="text-nowrap fw-semibold">
+              {{ day.date }}
+            </td>
+            <td>
+              @switch (day.status) {
+              @case ('Upcoming') {
+              <span class="badge rounded-pill bg-warning text-dark">Upcoming</span>
+              }
+              @case ('Today') {
+              <span class="badge rounded-pill bg-danger">Today</span>
+              }
+              @default {
+              <span class="badge rounded-pill bg-success">Done</span>
+              }
+              }
+              @if (day.extras.length) {
+              <span class="badge rounded-pill text-bg-secondary ms-1"
+                    title="There are more records on this date than legions - open it to clean up">
+                +{{ day.extras.length }} extra
+              </span>
+              }
+            </td>
+            @for (event of day.legions; track $index) {
+            <td class="legion-col"
+                [class.legion-col-2]="$index === 1">
+              @if (event) {
+              <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="text-body-secondary text-nowrap">{{ event.time }}</span>
+                @if (event.opponent) {
+                <span>
+                  vs <strong>{{ event.opponent }}</strong>
+                  @if (event.opponent_2) {
+                  &amp; <strong>{{ event.opponent_2 }}</strong>
+                  }
+                </span>
+                }
+                @let place = placement(event);
+                @if (place !== null) {
+                <span class="text-nowrap small">
+                  {{ event.our_score | number }}
+                  –
+                  {{ event.opponent_score | number }}
+                  @if (event.opponent_2_score !== null) {
+                  – {{ event.opponent_2_score | number }}
+                  }
+                </span>
+                @if (config.opponents === 1) {
+                <span class="badge"
+                      [class.text-bg-success]="place === 1"
+                      [class.text-bg-danger]="place !== 1">
+                  {{ place === 1 ? 'W' : 'L' }}
+                </span>
+                } @else {
+                <span class="badge"
+                      [class.text-bg-success]="place === 1"
+                      [class.text-bg-warning]="place === 2"
+                      [class.text-bg-danger]="place === 3">
+                  {{ place === 1 ? '1st' : place === 2 ? '2nd' : '3rd' }}
+                </span>
+                }
+                }
+              </div>
+              } @else {
+              <span class="text-body-tertiary">—</span>
+              }
+            </td>
+            }
+          </tr>
+          } @empty {
+          <tr>
+            <td colspan="4"
+                class="text-center text-body-secondary py-4">
+              No {{ config.plural }} found
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="card-footer bg-white text-body-secondary small py-3">
+      Showing {{ filteredDays().length }}
+      of {{ days().length }} days
+    </footer>
+  </section>
+</main>
+}

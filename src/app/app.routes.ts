@@ -8,10 +8,27 @@ import { authGuard } from './guards/auth.guard';
 import { requireApprovedUserProfileGuard } from './guards/require-approved-user-profile.guard';
 import { MissingProfileComponent } from './components/missing-profile/missing-profile.component';
 import { requireNotApprovedUserProfileGuard } from './guards/require-not-approved-user-profile.guard';
-import { FoundryManageComponent } from './components/foundry-manage/foundry-manage.component';
-import { FoundryListComponent } from './components/foundry-list/foundry-list.component';
-import { FoundryManageMembersComponent } from './components/foundry-manage-members/foundry-manage-members.component';
+import { EventManageComponent } from './components/event-manage/event-manage.component';
+import { EventListComponent } from './components/event-list/event-list.component';
+import { EventManageMembersComponent } from './components/event-manage-members/event-manage-members.component';
 import { SignupComponent } from './components/signup/signup.component';
+import { EventKind } from './defs/event-kind';
+
+/** List / day view / registration grid, shared by Foundry and Canyon Clash. */
+function eventRoutes(p_path: string, p_kind: EventKind): Routes {
+  const canActivate = [authGuard, requireApprovedUserProfileGuard];
+  const data = { kind: p_kind };
+  return [
+    { path: p_path, component: EventListComponent, canActivate, data },
+    { path: `${p_path}/manage/:date`, component: EventManageComponent, canActivate, data },
+    {
+      path: `${p_path}/manage-members/:date`,
+      component: EventManageMembersComponent,
+      canActivate,
+      data,
+    },
+  ];
+}
 
 export const routes: Routes = [
   {
@@ -58,24 +75,15 @@ export const routes: Routes = [
     component: AlliancesComponent,
     canActivate: [authGuard, requireApprovedUserProfileGuard],
   },
-  {
-    path: 'foundries/manage/:date',
-    component: FoundryManageComponent,
-    canActivate: [authGuard, requireApprovedUserProfileGuard],
-  },
-  {
-    path: 'foundries',
-    component: FoundryListComponent,
-    canActivate: [authGuard, requireApprovedUserProfileGuard],
-  },
-  {
-    path: 'foundries/manage-members/:date',
-    component: FoundryManageMembersComponent,
-    canActivate: [authGuard, requireApprovedUserProfileGuard],
-  },
+  ...eventRoutes('foundries', 'foundry'),
+  ...eventRoutes('canyon-clashes', 'canyon-clash'),
   {
     path: '',
     component: MembersComponent,
     canActivate: [authGuard, requireApprovedUserProfileGuard],
+  },
+  {
+    path: '**',
+    redirectTo: '',
   },
 ];

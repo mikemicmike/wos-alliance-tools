@@ -304,7 +304,7 @@
                 <th>Time</th>
                 <th>Registration</th>
                 <th>Power</th>
-                <th>Score</th>
+                <th>Remarks</th>
                 <th>Attendance</th>
               </tr>
             </thead>
@@ -348,15 +348,14 @@
                   }}
                 </td>
 
-                <td>
-                  {{
-                  participation.score !== null
-                  ? (participation.score | number)
-                  : '—'
-                  }}
+                <td class="small">
+                  {{ participation.notes }}
                 </td>
 
                 <td>
+                  @if (participation.showed_up === null) {
+                  <span class="text-body-tertiary">—</span>
+                  } @else {
                   <span class="badge"
                         [ngClass]="
                       participation.showed_up
@@ -369,6 +368,7 @@
                     : 'No show'
                     }}
                   </span>
+                  }
                 </td>
               </tr>
             </tbody>
@@ -505,6 +505,7 @@
                 <th>Power</th>
                 <th>Score</th>
                 <th>Attendance</th>
+                <th>Remarks</th>
               </tr>
             </thead>
 
@@ -556,6 +557,9 @@
                 </td>
 
                 <td>
+                  @if (participation.showed_up === null) {
+                  <span class="text-body-tertiary">—</span>
+                  } @else {
                   <span class="badge"
                         [ngClass]="
                       participation.showed_up
@@ -568,6 +572,11 @@
                     : 'No show'
                     }}
                   </span>
+                  }
+                </td>
+
+                <td class="small">
+                  {{ participation.notes }}
                 </td>
               </tr>
             </tbody>

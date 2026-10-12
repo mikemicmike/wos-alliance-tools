@@ -170,13 +170,14 @@ export class MemberViewComponent implements OnInit {
 
     const showedUp = items.filter((item) => item.showed_up === true).length;
 
-    const missed = total - showedUp;
+    // Attendance not recorded yet (e.g. upcoming events) doesn't count as missed
+    const missed = items.filter((item) => item.showed_up === false).length;
 
     return {
       total,
       showedUp,
       missed,
-      attendancePercent: total === 0 ? 0 : (showedUp / total) * 100,
+      attendancePercent: showedUp + missed === 0 ? 0 : (showedUp / (showedUp + missed)) * 100,
     };
   }
 

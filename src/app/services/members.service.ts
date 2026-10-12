@@ -1,10 +1,62 @@
-import { inject, Injectable, Service } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { Database } from '../defs/database.types';
 import { SupabaseService } from './supabase.service';
 
 export type DMemberInsert = Database['public']['Tables']['members']['Insert'];
 
 export type DMemberUpdate = Database['public']['Tables']['members']['Update'];
+
+const MEMBER_SELECT = `
+  *,
+  bear_times(label),
+  statuses(status, is_active, is_transferred_out, color),
+  canyon_clash_participants(
+    id,
+    power,
+    score,
+    showed_up,
+    is_substitute,
+    registered,
+    notes,
+    canyon_clashes(
+      date,
+      time,
+      legion
+    )
+  ),
+  foundry_participants(
+    id,
+    power,
+    score,
+    showed_up,
+    is_substitute,
+    registered,
+    notes,
+    foundries(
+      date,
+      time,
+      legion
+    )
+  ),
+  member_log(id, created_at, type, previous_value_num, previous_value_text, new_value_num, new_value_text)
+` as const;
+
+/**
+ * PostgREST can't order a parent's embedded rows by a column of a nested embed
+ * (`foundry_participants.foundries.date`), so participation history is sorted here, newest first.
+ */
+function sortHistory<
+  T extends {
+    foundry_participants: { foundries: { date: string } }[];
+    canyon_clash_participants: { canyon_clashes: { date: string } }[];
+  },
+>(p_member: T): T {
+  p_member.foundry_participants.sort((a, b) => b.foundries.date.localeCompare(a.foundries.date));
+  p_member.canyon_clash_participants.sort((a, b) =>
+    b.canyon_clashes.date.localeCompare(a.canyon_clashes.date),
+  );
+  return p_member;
+}
 
 @Injectable({
   providedIn: 'root',
@@ -15,45 +67,8 @@ export class MembersService {
   async getSingle(p_id: number) {
     const { data, error } = await this.supabase
       .from('members')
-      .select(
-        `
-          *,
-          bear_times(label),
-          statuses(status, is_active, is_transferred_out, color),
-          canyon_clash_participants(
-            id,
-            power,
-            score,
-            showed_up,
-            is_substitute,
-            canyon_clashes(
-              date,
-              time
-            )
-          ),
-          foundry_participants(
-            id,
-            power,
-            score,
-            showed_up,
-            is_substitute,
-            foundries(
-              date,
-              time
-            )
-          ),
-          member_log(id, created_at, type, previous_value_num, previous_value_text, new_value_num, new_value_text)
-        `,
-      )
+      .select(MEMBER_SELECT)
       .eq('id', p_id)
-      .order('date', {
-        referencedTable: 'foundry_participants.foundries',
-        ascending: false,
-      })
-      .order('date', {
-        referencedTable: 'canyon_clash_participants.canyon_clashes',
-        ascending: false,
-      })
       .order('created_at', {
         referencedTable: 'member_log',
         ascending: false,
@@ -64,61 +79,24 @@ export class MembersService {
     }
 
     if (!data[0]) {
-      throw 'record not found';
+      throw new Error('Member not found');
     }
 
-    return data[0];
+    return sortHistory(data[0]);
   }
 
   async list() {
     const { data, error } = await this.supabase
       .from('members')
-      .select(
-        `
-          *,
-          bear_times(label),
-          statuses(status, is_active, is_transferred_out, color),
-          canyon_clash_participants(
-            id,
-            power,
-            score,
-            showed_up,
-            is_substitute,
-            canyon_clashes(
-              date,
-              time
-            )
-          ),
-          foundry_participants(
-            id,
-            power,
-            score,
-            showed_up,
-            is_substitute,
-            foundries(
-              date,
-              time
-            )
-          ),
-          member_log(id, created_at, type, previous_value_num, previous_value_text, new_value_num, new_value_text)
-        `,
-      )
+      .select(MEMBER_SELECT)
       .order('rank', { ascending: false })
-      .order('power', { ascending: false })
-      .order('date', {
-        referencedTable: 'foundry_participants.foundries',
-        ascending: false,
-      })
-      .order('date', {
-        referencedTable: 'canyon_clash_participants.canyon_clashes',
-        ascending: false,
-      });
+      .order('power', { ascending: false });
 
     if (error) {
       throw new Error(error.message);
     }
 
-    return data;
+    return data.map(sortHistory);
   }
 
   async getActiveMembers() {
@@ -126,50 +104,24 @@ export class MembersService {
       .from('members')
       .select(
         `
-          *,
-          bear_times(label),
-          statuses(status, is_active, is_transferred_out, color),
-          canyon_clash_participants(
-            id,
-            power,
-            score,
-            showed_up,
-            is_substitute,
-            canyon_clashes(
-              date,
-              time
-            )
-          ),
-          foundry_participants(
-            id,
-            power,
-            score,
-            showed_up,
-            is_substitute,
-            foundries(
-              date,
-              time
-            )
-          ),
-          member_log(id, created_at, type, previous_value_num, previous_value_text, new_value_num, new_value_text)
+          id,
+          name,
+          gameId,
+          power,
+          statuses!inner(is_active),
+          canyon_clash_participants(power, canyon_clashes(date)),
+          foundry_participants(power, foundries(date))
         `,
       )
+      // !inner makes this filter the members themselves, not just the embedded status
       .eq('statuses.is_active', true)
-      .order('name')
-      .order('date', {
-        referencedTable: 'foundry_participants.foundries',
-        ascending: false,
-      })
-      .order('date', {
-        referencedTable: 'canyon_clash_participants.canyon_clashes',
-        ascending: false,
-      });
+      .order('name');
 
     if (error) {
       throw new Error(error.message);
     }
 
-    return data;
+    return data.map(sortHistory);
   }
 
   async create(input: DMemberInsert) {

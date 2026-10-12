@@ -1,0 +1,8 @@
+.legion-col {
+  width: 40%;
+}
+
+// Thicker divider between the two legion columns
+.legion-col-2 {
+  border-left: 3px solid var(--bs-border-color-translucent) !important;
+}

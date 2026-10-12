@@ -25,3 +25,32 @@ body {
 .clickable {
   cursor: pointer;
 }
+
+// Legion colours, shared by badges, cards and the registration grid
+:root {
+  --legion-1: #0d35b9;
+  --legion-1-bg: #e7ecfb;
+  --legion-2: #04666d;
+  --legion-2-bg: #e3f2f2;
+}
+
+.l1,
+.l2 {
+  color: white;
+}
+
+.l1 {
+  background-color: var(--legion-1);
+}
+
+.l2 {
+  background-color: var(--legion-2);
+}
+
+.legion-border-1 {
+  border-top: 4px solid var(--legion-1) !important;
+}
+
+.legion-border-2 {
+  border-top: 4px solid var(--legion-2) !important;
+}
